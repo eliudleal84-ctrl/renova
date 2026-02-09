@@ -10,11 +10,12 @@ export default function TemplatesPage() {
     const router = useRouter();
     const [templates, setTemplates] = useState<IWhatsAppTemplate[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showAddModal, setShowAddModal] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState<IWhatsAppTemplate | null>(null);
     const [darkMode, setDarkMode] = useState(false);
 
-    // New Template State
-    const [newTemplate, setNewTemplate] = useState({
+    // Form State
+    const [formData, setFormData] = useState({
         name: '',
         language: 'es',
         category: 'MARKETING',
@@ -48,37 +49,60 @@ export default function TemplatesPage() {
         }
     };
 
-    const handleCreateTemplate = async (e: React.FormEvent) => {
+    const handleOpenAddModal = () => {
+        setEditingTemplate(null);
+        setFormData({ name: '', language: 'es', category: 'MARKETING', bodyText: '', variables: '' });
+        setShowModal(true);
+    };
+
+    const handleOpenEditModal = (template: IWhatsAppTemplate) => {
+        setEditingTemplate(template);
+        const bodyText = template.components.find(c => c.type === 'BODY')?.text || '';
+        setFormData({
+            name: template.name,
+            language: template.language,
+            category: template.category,
+            bodyText: bodyText,
+            variables: template.variables.join(', ')
+        });
+        setShowModal(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
         try {
-            // Process variables from comma-separated string
-            const varsArray = newTemplate.variables.split(',').map(v => v.trim()).filter(v => v !== '');
+            const varsArray = formData.variables.split(',').map(v => v.trim()).filter(v => v !== '');
 
             const payload = {
-                name: newTemplate.name,
-                language: newTemplate.language,
-                category: newTemplate.category,
+                name: formData.name,
+                language: formData.language,
+                category: formData.category,
                 components: [
                     {
                         type: 'BODY',
-                        text: newTemplate.bodyText
+                        text: formData.bodyText
                     }
                 ],
                 variables: varsArray,
-                status: 'APPROVED' // We assume approved for now as this is a personal manager
+                status: editingTemplate ? editingTemplate.status : 'APPROVED'
             };
 
-            const res = await fetch('/api/templates', {
-                method: 'POST',
+            const url = editingTemplate
+                ? `/api/templates/${editingTemplate._id}`
+                : '/api/templates';
+
+            const method = editingTemplate ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
             const data = await res.json();
             if (data.success) {
-                setShowAddModal(false);
-                setNewTemplate({ name: '', language: 'es', category: 'MARKETING', bodyText: '', variables: '' });
+                setShowModal(false);
                 fetchTemplates();
             } else {
                 alert('Error: ' + data.error);
@@ -87,6 +111,24 @@ export default function TemplatesPage() {
             console.error(error);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
+
+        try {
+            const res = await fetch(`/api/templates/${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchTemplates();
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -112,7 +154,7 @@ export default function TemplatesPage() {
                         </h1>
                     </div>
                     <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={handleOpenAddModal}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-black shadow-xl shadow-blue-200 dark:shadow-none transition-all active:scale-95 flex items-center gap-2"
                     >
                         <span>+</span> NUEVA PLANTILLA
@@ -123,17 +165,21 @@ export default function TemplatesPage() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {templates.map(template => (
-                        <div key={template._id.toString()} className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 hover:shadow-xl transition-all group">
+                        <div key={template._id.toString()} className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-slate-800 hover:shadow-xl transition-all group flex flex-col h-full">
                             <div className="flex justify-between items-start mb-4">
                                 <span className="text-[10px] font-black bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full uppercase tracking-widest">
                                     {template.category}
                                 </span>
-                                <span className="text-[10px] font-bold text-gray-400">{template.language.toUpperCase()}</span>
+                                <div className="flex gap-2">
+                                    <span className="text-[10px] font-bold text-gray-400">{template.language.toUpperCase()}</span>
+                                    <button onClick={() => handleOpenEditModal(template)} className="text-gray-400 hover:text-blue-600 transition-colors" title="Editar">✏️</button>
+                                    <button onClick={() => handleDelete(template._id.toString())} className="text-gray-400 hover:text-red-600 transition-colors" title="Eliminar">🗑️</button>
+                                </div>
                             </div>
                             <h3 className="text-lg font-black text-gray-900 dark:text-white mb-3 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
                                 {template.name}
                             </h3>
-                            <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 mb-4">
+                            <div className="bg-gray-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 mb-4 flex-1">
                                 <p className="text-xs text-gray-600 dark:text-gray-400 font-medium italic line-clamp-4 whitespace-pre-wrap leading-relaxed">
                                     {template.components.find(c => c.type === 'BODY')?.text}
                                 </p>
@@ -158,7 +204,7 @@ export default function TemplatesPage() {
                                 Registra aquí las plantillas que ya tienes aprobadas en Meta para poder enviarlas desde el chat de tus clientes.
                             </p>
                             <button
-                                onClick={() => setShowAddModal(true)}
+                                onClick={handleOpenAddModal}
                                 className="text-blue-600 font-black text-sm hover:underline uppercase tracking-widest"
                             >
                                 Crear mi primera plantilla
@@ -168,23 +214,25 @@ export default function TemplatesPage() {
                 </div>
             </main>
 
-            {/* Modal: Agregar Plantilla */}
-            {showAddModal && (
+            {/* Modal: Agregar/Editar Plantilla */}
+            {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-lg w-full p-8 border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Nueva Plantilla Oficial</h2>
-                            <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                {editingTemplate ? 'Editar Plantilla' : 'Nueva Plantilla Oficial'}
+                            </h2>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
                         </div>
-                        <form onSubmit={handleCreateTemplate} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Nombre (Exacto de Meta)</label>
                                 <input
                                     type="text"
                                     required
                                     placeholder="ej: recordatorio_pago"
-                                    value={newTemplate.name}
-                                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
                                 />
                             </div>
@@ -192,8 +240,8 @@ export default function TemplatesPage() {
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Idioma (Código Meta)</label>
                                     <select
-                                        value={newTemplate.language}
-                                        onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
+                                        value={formData.language}
+                                        onChange={(e) => setFormData({ ...formData, language: e.target.value })}
                                         className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none mb-2"
                                     >
                                         <option value="es">Español (es)</option>
@@ -203,20 +251,21 @@ export default function TemplatesPage() {
                                         <option value="pt_BR">Portugués (pt_BR)</option>
                                         <option value="other">Otro (Escribir abajo)</option>
                                     </select>
-                                    {newTemplate.language === 'other' || !['es', 'es_MX', 'en', 'en_US', 'pt_BR'].includes(newTemplate.language) ? (
+                                    {(formData.language === 'other' || !['es', 'es_MX', 'en', 'en_US', 'pt_BR'].includes(formData.language)) && (
                                         <input
                                             type="text"
                                             placeholder="Ej: es_ES, fr_FR..."
-                                            onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
+                                            value={formData.language}
+                                            onChange={(e) => setFormData({ ...formData, language: e.target.value })}
                                             className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
                                         />
-                                    ) : null}
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Categoría</label>
                                     <select
-                                        value={newTemplate.category}
-                                        onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value as any })}
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
                                         className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
                                     >
                                         <option value="MARKETING">Marketing</option>
@@ -231,8 +280,8 @@ export default function TemplatesPage() {
                                     required
                                     rows={4}
                                     placeholder="Hola {{1}}, tu servicio vence el {{2}}..."
-                                    value={newTemplate.bodyText}
-                                    onChange={(e) => setNewTemplate({ ...newTemplate, bodyText: e.target.value })}
+                                    value={formData.bodyText}
+                                    onChange={(e) => setFormData({ ...formData, bodyText: e.target.value })}
                                     className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all resize-none"
                                 />
                             </div>
@@ -241,15 +290,15 @@ export default function TemplatesPage() {
                                 <input
                                     type="text"
                                     placeholder="Separa con comas"
-                                    value={newTemplate.variables}
-                                    onChange={(e) => setNewTemplate({ ...newTemplate, variables: e.target.value })}
+                                    value={formData.variables}
+                                    onChange={(e) => setFormData({ ...formData, variables: e.target.value })}
                                     className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
                                 />
                             </div>
                             <div className="flex gap-4 pt-4">
                                 <button
                                     type="button"
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => setShowModal(false)}
                                     className="flex-1 px-6 py-4 rounded-xl text-xs font-black text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest"
                                 >
                                     Cancelar
@@ -259,7 +308,7 @@ export default function TemplatesPage() {
                                     disabled={saving}
                                     className="flex-[2] px-6 py-4 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 shadow-xl shadow-blue-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest"
                                 >
-                                    {saving ? 'Guardando...' : 'Guardar Plantilla'}
+                                    {saving ? 'Guardando...' : 'Guardar Cambios'}
                                 </button>
                             </div>
                         </form>
