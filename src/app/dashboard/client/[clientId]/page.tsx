@@ -12,16 +12,37 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const { data: session, status } = useSession();
     const router = useRouter();
     const [client, setClient] = useState<IClient | null>(null);
+    const [loading, setLoading] = useState(true);
     const [messages, setMessages] = useState<IMessage[]>([]);
     const [reminders, setReminders] = useState<IReminder[]>([]);
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [summarizing, setSummarizing] = useState(false);
     const [aiSummary, setAiSummary] = useState('');
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
+    const [darkMode, setDarkMode] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            setDarkMode(true);
+            document.documentElement.classList.add('dark');
+        }
+    }, []);
+
+    const toggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -189,7 +210,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
 
     if (loading || status === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
@@ -197,7 +218,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
 
     if (!client) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950">
                 <p className="text-gray-500 mb-4">No se encontró el cliente o no tienes acceso.</p>
                 <button onClick={() => router.push('/dashboard')} className="text-blue-600 font-bold">Volver al Dashboard</button>
             </div>
@@ -205,18 +226,24 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-gray-100">
+        <div className="flex flex-col min-h-screen bg-gray-100 dark:bg-slate-950 transition-colors duration-300">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 shadow-sm">
+            <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 p-4 sticky top-0 z-10 shadow-sm transition-colors">
                 <div className="max-w-5xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button onClick={() => router.push('/dashboard')} className="text-gray-500 hover:text-blue-600 text-2xl">←</button>
                         <div>
-                            <h1 className="text-lg font-bold text-blue-600">{client.name || client.phoneNumber} <span className="text-[10px] text-gray-300 font-normal">v1.2</span></h1>
-                            <p className="text-xs text-gray-500">{client.phoneNumber}</p>
+                            <h1 className="text-lg font-bold text-gray-900 dark:text-white">{client.name || client.phoneNumber}</h1>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{client.phoneNumber}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={toggleDarkMode}
+                            className="p-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-yellow-400 hover:bg-gray-200 dark:hover:bg-slate-700 transition-all shadow-inner"
+                        >
+                            {darkMode ? '☀️' : '🌙'}
+                        </button>
                         <select
                             value={client.status}
                             onChange={(e) => updateStatus(e.target.value)}
@@ -234,22 +261,20 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                 </div>
             </header>
 
-            {/* Main Content (ChatArea) */}
-            <div className="h-[600px] flex flex-col max-w-5xl w-full mx-auto bg-white shadow-lg my-4 rounded-xl border border-gray-200">
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] pattern">
-                    {messages.map((msg: any) => (
+            {/* Chat Area */}
+            <div className="flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto bg-white dark:bg-slate-900 shadow-lg my-4 rounded-xl border border-gray-200 dark:border-slate-800 transition-colors">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                    {messages.map((msg: IMessage) => (
                         <div
-                            key={msg._id}
+                            key={msg._id.toString()}
                             className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                         >
-                            <div className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${msg.direction === 'outgoing'
-                                ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none border-l-4 border-green-500'
-                                : 'bg-white text-gray-900 rounded-tl-none border-l-4 border-blue-500'
+                            <div className={`max-w-[70%] rounded-2xl p-3 shadow-sm ${msg.direction === 'outgoing'
+                                ? 'bg-blue-600 text-white rounded-tr-none'
+                                : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-tl-none border border-gray-200 dark:border-slate-700'
                                 }`}>
-                                <p className="text-sm font-medium leading-relaxed">{msg.body}</p>
-                                <p className="text-[10px] text-gray-500 mt-2 text-right font-bold">
+                                <p className="text-sm leading-relaxed">{msg.body}</p>
+                                <p className={`text-[10px] mt-1 opacity-70 ${msg.direction === 'outgoing' ? 'text-blue-100' : 'text-gray-500'}`}>
                                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                             </div>
@@ -259,61 +284,91 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-gray-50 border-t border-gray-200">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Escribe un mensaje aquí..."
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none shadow-inner text-gray-900 font-medium"
-                        />
-                        <button
-                            type="submit"
-                            disabled={!newMessage.trim() || sending}
-                            className="w-14 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:bg-gray-400"
-                        >
-                            {sending ? '...' : '➤'}
-                        </button>
-                    </form>
+                <form onSubmit={handleSendMessage} className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-800 flex gap-2">
+                    <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Escribe un mensaje..."
+                        className="flex-1 bg-white dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-gray-900 dark:text-white focus:border-blue-500 outline-none transition-all"
+                    />
+                    <button
+                        type="submit"
+                        disabled={sending || !newMessage.trim()}
+                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-md active:scale-95"
+                    >
+                        {sending ? '...' : 'Enviar'}
+                    </button>
+                </form>
+            </div>
+
+            {/* AI Summary Section */}
+            <div className="max-w-5xl w-full mx-auto mb-8">
+                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900 dark:to-blue-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">✨</div>
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <span>🤖</span> Resumen Inteligente (IA)
+                            </h2>
+                            <button
+                                onClick={handleGenerateSummary}
+                                disabled={summarizing}
+                                className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-white/30"
+                            >
+                                {summarizing ? 'Generando...' : 'Generar Nuevo Resumen'}
+                            </button>
+                        </div>
+
+                        {aiSummary ? (
+                            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                                <div className="space-y-2">
+                                    {aiSummary.split('\n').map((line, i) => (
+                                        <p key={i} className="text-sm leading-relaxed text-blue-50">
+                                            {line}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-blue-100 text-sm italic">Presiona el botón para que la IA resuma los puntos clave de esta conversación.</p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* IA & Footer Grid */}
-            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                {/* IA Summary Card */}
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-xl border border-indigo-400 shadow-lg text-white">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-100">Resumen Mágico IA</h3>
-                        <button
-                            onClick={handleGenerateSummary}
-                            disabled={summarizing}
-                            className="bg-white text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase hover:bg-indigo-50 transition-all disabled:opacity-50"
-                        >
-                            {summarizing ? 'PENSANDO...' : '✨ GENERAR'}
-                        </button>
+            {/* Information & Actions Grid */}
+            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-200 dark:border-slate-800 shadow-md transition-colors">
+                    <h3 className="text-xs font-black text-blue-800 dark:text-blue-400 uppercase tracking-[0.2em] mb-4">Información del Cliente</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">NOMBRE COMPLETO</label>
+                            <input
+                                type="text"
+                                placeholder="Ej: Juan Pérez"
+                                defaultValue={client?.name || ''}
+                                onBlur={(e) => fetch(`/api/clients/${params.clientId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ name: e.target.value })
+                                }).then(res => res.json()).then(data => {
+                                    if (data.success) setClient(data.data);
+                                })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
+                            />
+                        </div>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium italic">
+                            WhatsApp: {client?.phoneNumber}
+                        </p>
                     </div>
-                    {aiSummary ? (
-                        <div className="text-xs leading-relaxed space-y-2 overflow-y-auto max-h-40 pr-2 custom-scrollbar">
-                            <div className="prose prose-invert prose-xs">
-                                {aiSummary.split('\n').map((line, i) => (
-                                    <p key={i} className="mb-1">{line}</p>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="h-40 flex flex-col items-center justify-center text-center opacity-60">
-                            <span className="text-3xl mb-2">🤖</span>
-                            <p className="text-[10px] font-bold">Haz clic en Generar para que la IA analice el chat.</p>
-                        </div>
-                    )}
                 </div>
 
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-                    <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em] mb-4">Notas del Cliente</h3>
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-200 dark:border-slate-800 shadow-md transition-colors">
+                    <h3 className="text-xs font-black text-blue-800 dark:text-blue-400 uppercase tracking-[0.2em] mb-4">Notas del Cliente</h3>
                     <textarea
-                        placeholder="Añade detalles importantes, deudas o recordatorios..."
-                        className="w-full text-base border-2 border-gray-100 rounded-lg focus:border-blue-200 focus:ring-0 p-3 text-gray-900 h-24 resize-none leading-relaxed"
+                        placeholder="Añade detalles importantes..."
+                        className="w-full text-base bg-white dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:ring-0 p-3 text-gray-900 dark:text-white h-24 resize-none leading-relaxed transition-all"
                         defaultValue={client?.notes || ''}
                         onBlur={(e) => fetch(`/api/clients/${params.clientId}`, {
                             method: 'PUT',
@@ -322,12 +377,13 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                         })}
                     />
                 </div>
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md flex flex-col justify-between">
+
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-gray-200 dark:border-slate-800 shadow-md flex flex-col justify-between transition-colors">
                     <div>
-                        <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em] mb-4">Gestión de Servicio</h3>
+                        <h3 className="text-xs font-black text-blue-800 dark:text-blue-400 uppercase tracking-[0.2em] mb-4">Gestión de Servicio</h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">FECHA DE VENCIMIENTO</label>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">FECHA DE VENCIMIENTO</label>
                                 <input
                                     type="date"
                                     defaultValue={client?.expirationDate ? new Date(client.expirationDate).toISOString().split('T')[0] : ''}
@@ -336,56 +392,51 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ expirationDate: e.target.value })
                                     })}
-                                    className="w-full px-3 py-2 border-2 border-gray-100 rounded-lg text-gray-900 font-bold focus:border-blue-500 outline-none"
+                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
                                 />
                             </div>
                         </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-4 font-medium italic">
-                        Última interacción registrada: {client?.lastInteraction ? new Date(client.lastInteraction).toLocaleString() : ''}
-                    </p>
                 </div>
             </div>
 
-            {/* Reminders Section */}
-            <div className="p-4 max-w-5xl w-full mx-auto mb-8">
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em]">Recordatorios del Cliente</h3>
+            {/* Reminders List Section */}
+            <div className="max-w-5xl w-full mx-auto p-4 mb-20">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-lg overflow-hidden transition-colors">
+                    <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>📌</span> Recordatorios y Tareas
+                        </h3>
                         <button
                             onClick={() => setShowReminderModal(true)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-md active:scale-95"
                         >
-                            + NUEVA TAREA
+                            + Nuevo
                         </button>
                     </div>
-
-                    <div className="space-y-3">
+                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
                         {reminders.length > 0 ? (
                             reminders.map((rem: IReminder) => (
-                                <div
-                                    key={rem._id.toString()}
-                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${rem.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-blue-50 hover:border-blue-200'}`}
-                                >
+                                <div key={rem._id.toString()} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <input
                                             type="checkbox"
                                             checked={rem.completed}
                                             onChange={(e) => handleToggleReminder(rem._id.toString(), e.target.checked)}
-                                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                            className="w-5 h-5 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                         />
                                         <div>
-                                            <p className={`text-sm font-bold ${rem.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                            <p className={`text-sm font-bold ${rem.completed ? 'text-gray-400 dark:text-gray-600 line-through' : 'text-gray-900 dark:text-white'}`}>
                                                 {rem.description}
                                             </p>
                                             <div className="flex gap-2 mt-1">
-                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 text-red-600' :
-                                                    rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
-                                                        'bg-blue-100 text-blue-600'
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
+                                                    rem.type === 'renovar' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400' :
+                                                        'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
                                                     }`}>
                                                     {rem.type}
                                                 </span>
-                                                <span className="text-[10px] text-gray-400 font-bold">
+                                                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold">
                                                     📅 {new Date(rem.dueDate).toLocaleDateString()}
                                                 </span>
                                             </div>
@@ -393,15 +444,15 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                     </div>
                                     <button
                                         onClick={() => handleDeleteReminder(rem._id.toString())}
-                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                        className="text-gray-300 dark:text-gray-600 hover:text-red-500 transition-colors"
                                     >
                                         <span className="text-xl">×</span>
                                     </button>
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
-                                <p className="text-sm text-gray-400 font-medium italic">No hay tareas pendientes para este cliente.</p>
+                            <div className="p-12 text-center text-gray-400 dark:text-gray-500">
+                                <p className="italic">No hay recordatorios registrados para este cliente.</p>
                             </div>
                         )}
                     </div>
@@ -411,60 +462,56 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             {/* Reminder Modal */}
             {showReminderModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-xl font-black text-gray-900 mb-6">Nuevo Recordatorio</h2>
-                        <form onSubmit={handleAddReminder} className="space-y-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-8 border border-gray-200 dark:border-slate-800 transition-colors">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Nuevo Recordatorio</h2>
+                        <form onSubmit={handleAddReminder} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Tipo de Tarea</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {['cobrar', 'seguimiento', 'renovar'].map((t) => (
-                                        <button
-                                            key={t}
-                                            type="button"
-                                            onClick={() => setNewReminder({ ...newReminder, type: t })}
-                                            className={`py-2 rounded-lg text-xs font-black uppercase border-2 transition-all ${newReminder.type === t
-                                                ? 'border-blue-600 bg-blue-50 text-blue-600'
-                                                : 'border-gray-100 text-gray-400 hover:bg-gray-50'
-                                                }`}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
-                                </div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 tracking-wider">TIPO DE TAREA</label>
+                                <select
+                                    value={newReminder.type}
+                                    onChange={(e) => setNewReminder({ ...newReminder, type: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="cobrar">💵 COBRAR</option>
+                                    <option value="renovar">🔄 RENOVAR</option>
+                                    <option value="seguimiento">📞 SEGUIMIENTO</option>
+                                    <option value="otro">📝 OTRO</option>
+                                </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Fecha Límite</label>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 tracking-wider">FECHA LÍMITE</label>
                                 <input
                                     type="date"
                                     required
                                     value={newReminder.dueDate}
                                     onChange={(e) => setNewReminder({ ...newReminder, dueDate: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-gray-900 font-bold focus:border-blue-500 outline-none"
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Descripción</label>
-                                <textarea
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 tracking-wider">DESCRIPCIÓN</label>
+                                <input
+                                    type="text"
                                     required
-                                    placeholder="Escribe qué necesitas hacer..."
+                                    placeholder="Ej: Enviar link de pago de Netflix..."
                                     value={newReminder.description}
                                     onChange={(e) => setNewReminder({ ...newReminder, description: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-gray-900 font-medium focus:border-blue-500 outline-none h-24 resize-none"
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
                                 />
                             </div>
-                            <div className="flex gap-4 pt-4">
+                            <div className="flex gap-3 mt-8">
                                 <button
                                     type="button"
                                     onClick={() => setShowReminderModal(false)}
-                                    className="flex-1 px-6 py-3 rounded-lg text-sm font-black text-gray-400 hover:bg-gray-50 transition-colors"
+                                    className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
                                 >
-                                    CANCELAR
+                                    Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-black hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-all shadow-md active:scale-95"
                                 >
-                                    GUARDAR
+                                    Guardar
                                 </button>
                             </div>
                         </form>
