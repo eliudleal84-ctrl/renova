@@ -204,14 +204,14 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-100">
+        <div className="flex flex-col min-h-screen bg-gray-100">
             {/* Header */}
             <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 shadow-sm">
                 <div className="max-w-5xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button onClick={() => router.push('/dashboard')} className="text-gray-500 hover:text-blue-600 text-2xl">←</button>
                         <div>
-                            <h1 className="text-lg font-bold text-gray-900">{client.name || client.phoneNumber}</h1>
+                            <h1 className="text-lg font-bold text-blue-600">{client.name || client.phoneNumber} <span className="text-[10px] text-gray-300 font-normal">v1.2</span></h1>
                             <p className="text-xs text-gray-500">{client.phoneNumber}</p>
                         </div>
                     </div>
@@ -234,7 +234,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             </header>
 
             {/* Main Content (ChatArea) */}
-            <div className="flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto bg-white shadow-lg my-4 rounded-xl border border-gray-200">
+            <div className="h-[600px] flex flex-col max-w-5xl w-full mx-auto bg-white shadow-lg my-4 rounded-xl border border-gray-200">
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] pattern">
