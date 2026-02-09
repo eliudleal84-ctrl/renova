@@ -2,11 +2,18 @@ import axios from 'axios';
 
 const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
 
+interface TemplateOption {
+    name: string;
+    languageCode: string;
+    components?: any[];
+}
+
 interface SendMessageOptions {
     accessToken: string;
     phoneId: string;
     to: string;
-    text: string;
+    text?: string;
+    template?: TemplateOption;
 }
 
 export const sendWhatsAppMessage = async ({
@@ -14,17 +21,34 @@ export const sendWhatsAppMessage = async ({
     phoneId,
     to,
     text,
+    template,
 }: SendMessageOptions) => {
     try {
+        const payload: any = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: to,
+        };
+
+        if (template) {
+            payload.type = 'template';
+            payload.template = {
+                name: template.name,
+                language: {
+                    code: template.languageCode,
+                },
+                components: template.components,
+            };
+        } else if (text) {
+            payload.type = 'text';
+            payload.text = { body: text };
+        } else {
+            throw new Error('Debe proporcionar texto o una plantilla.');
+        }
+
         const response = await axios.post(
             `${WHATSAPP_API_URL}/${phoneId}/messages`,
-            {
-                messaging_product: 'whatsapp',
-                recipient_type: 'individual',
-                to: to,
-                type: 'text',
-                text: { body: text },
-            },
+            payload,
             {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,

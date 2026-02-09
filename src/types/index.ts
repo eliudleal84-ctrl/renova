@@ -3,6 +3,8 @@ import { IClient, ClientStatus } from '@/models/Client';
 import { IConversation } from '@/models/Conversation';
 import { IMessage, MessageDirection, MessageStatus } from '@/models/Message';
 import { IReminder, ReminderType } from '@/models/Reminder';
+import { IPayment } from '@/models/Payment';
+import { IWhatsAppTemplate } from '@/models/WhatsAppTemplate';
 
 // Re-export model interfaces
 export type {
@@ -11,6 +13,8 @@ export type {
     IConversation,
     IMessage,
     IReminder,
+    IPayment,
+    IWhatsAppTemplate,
     ClientStatus,
     MessageDirection,
     MessageStatus,

@@ -48,8 +48,8 @@ export async function POST(
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
-        const { body: messageText } = await request.json();
-        if (!messageText) return NextResponse.json({ success: false, error: 'Mensaje vacío' }, { status: 400 });
+        const { body: messageText, templateName, templateComponents, templateLanguage } = await request.json();
+        if (!messageText && !templateName) return NextResponse.json({ success: false, error: 'Mensaje vacío o sin plantilla' }, { status: 400 });
 
         await connectDB();
 
@@ -90,7 +90,12 @@ export async function POST(
             accessToken: user.whatsappToken,
             phoneId: user.whatsappPhoneId,
             to: cleanPhone,
-            text: messageText
+            text: messageText,
+            template: templateName ? {
+                name: templateName,
+                languageCode: templateLanguage || 'es',
+                components: templateComponents
+            } : undefined
         });
 
         if (!waResult.success) {
@@ -99,13 +104,16 @@ export async function POST(
         }
 
         // 4. Guardar en la base de datos
+        // Si es plantilla, el cuerpo del mensaje guardado debe ser descriptivo
+        const finalBody = messageText || `[Plantilla: ${templateName}]`;
+
         const newMessage = await Message.create({
             conversationId: conversation._id,
             userId: session.user.id,
             messageId: waResult.messageId,
             from: user.whatsappPhoneId, // Nuestro ID
             to: conversation.phoneNumber,
-            body: messageText,
+            body: finalBody,
             timestamp: new Date(),
             direction: 'outgoing',
             status: 'sent'

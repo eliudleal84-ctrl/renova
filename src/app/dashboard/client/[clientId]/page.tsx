@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 import { use } from 'react';
-import { IClient, IMessage, IReminder } from '@/types';
+import { IClient, IMessage, IReminder, IPayment, IWhatsAppTemplate } from '@/types';
 
 export default function ClientDetailPage({ params: paramsPromise }: { params: Promise<{ clientId: string }> }) {
     const params = use(paramsPromise);
@@ -23,9 +23,21 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
     const [darkMode, setDarkMode] = useState(false);
 
+    // Estados para Pagos
+    const [payments, setPayments] = useState<IPayment[]>([]);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [newPayment, setNewPayment] = useState({ amount: '', service: '', durationMonths: '1', notes: '', paymentDate: new Date().toISOString().split('T')[0] });
+    const [registeringPayment, setRegisteringPayment] = useState(false);
+
     // Estados para Sugerencias de IA
     const [suggestingResponse, setSuggestingResponse] = useState(false);
     const [showAiMenu, setShowAiMenu] = useState(false);
+
+    // Estados para Plantillas
+    const [templates, setTemplates] = useState<IWhatsAppTemplate[]>([]);
+    const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<IWhatsAppTemplate | null>(null);
+    const [templateVariables, setTemplateVariables] = useState<{ [key: string]: string }>({});
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -86,18 +98,24 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [clientRes, messagesRes, remindersRes] = await Promise.all([
+            const [clientRes, messagesRes, remindersRes, paymentsRes, templatesRes] = await Promise.all([
                 fetch(`/api/clients/${params.clientId}`),
                 fetch(`/api/clients/${params.clientId}/messages`),
-                fetch(`/api/clients/${params.clientId}/reminders`)
+                fetch(`/api/clients/${params.clientId}/reminders`),
+                fetch(`/api/clients/${params.clientId}/payments`),
+                fetch('/api/templates')
             ]);
             const clientData = await clientRes.json();
             const messagesData = await messagesRes.json();
             const remindersData = await remindersRes.json();
+            const paymentsData = await paymentsRes.json();
+            const templatesData = await templatesRes.json();
 
             if (clientData.success) setClient(clientData.data);
             if (messagesData.success) setMessages(messagesData.data);
             if (remindersData.success) setReminders(remindersData.data);
+            if (paymentsData.success) setPayments(paymentsData.data);
+            if (templatesData.success) setTemplates(templatesData.data);
         } catch (error) {
             console.error('Error fetching client data:', error);
         } finally {
@@ -122,6 +140,41 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             if (data.success) setReminders(data.data);
         } catch (error) {
             console.error('Error fetching reminders:', error);
+        }
+    };
+
+    const fetchPayments = async () => {
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/payments`);
+            const data = await res.json();
+            if (data.success) setPayments(data.data);
+        } catch (error) {
+            console.error('Error fetching payments:', error);
+        }
+    };
+
+    const handleRegisterPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setRegisteringPayment(true);
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPayment)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowPaymentModal(false);
+                setNewPayment({ amount: '', service: '', durationMonths: '1', notes: '', paymentDate: new Date().toISOString().split('T')[0] });
+                // Recargar datos para ver el nuevo vencimiento y estado
+                fetchData();
+            } else {
+                alert('Error al registrar pago: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error registering payment:', error);
+        } finally {
+            setRegisteringPayment(false);
         }
     };
 
@@ -369,6 +422,13 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                 )}
                             </div>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => setShowTemplateModal(true)}
+                            className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm transition-all active:scale-95 animate-pulse"
+                        >
+                            📋 PLANTILLAS OFICIALES
+                        </button>
                     </div>
                 </div>
 
@@ -484,7 +544,74 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                     className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-lg text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
                                 />
                             </div>
+                            <div className="pt-2">
+                                <button
+                                    onClick={() => setShowPaymentModal(true)}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <span>💰</span> Registrar Pago / Renovación
+                                </button>
+                            </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Financial History Section */}
+            <div className="max-w-5xl w-full mx-auto p-4 mb-8">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-lg overflow-hidden transition-colors">
+                    <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span>💸</span> Historial de Pagos
+                        </h3>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                            {payments.length} TRANSACCIONES
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-slate-800/30 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-slate-800">
+                                    <th className="px-6 py-4">Fecha Pago</th>
+                                    <th className="px-6 py-4">Servicio / Plan</th>
+                                    <th className="px-6 py-4">Duración</th>
+                                    <th className="px-6 py-4">Monto</th>
+                                    <th className="px-6 py-4">Nuevo Vencimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                {payments.length > 0 ? (
+                                    payments.map((p) => (
+                                        <tr key={p._id.toString()} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 font-medium">
+                                                {new Date(p.paymentDate).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white">{p.service}</div>
+                                                {p.notes && <div className="text-[10px] text-gray-400 dark:text-gray-500 italic mt-0.5">{p.notes}</div>}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase">
+                                                    {p.durationMonths} {p.durationMonths === 1 ? 'MES' : 'MESES'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-black text-emerald-600 dark:text-emerald-400">
+                                                ${p.amount.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
+                                                {new Date(p.newExpirationDate).toLocaleDateString()}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 dark:text-gray-600 text-sm italic">
+                                            No hay registros de pagos previos para este cliente.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -608,13 +735,238 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                 </div>
             )}
 
+            {/* Modal: Registrar Pago */}
+            {showPaymentModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200 overflow-hidden relative transition-colors">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+                            <span className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/50 rounded-full flex items-center justify-center text-emerald-600 text-xl">💵</span>
+                            Registrar Pago
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 font-medium">Completa los datos para actualizar el vencimiento del cliente.</p>
+
+                        <form onSubmit={handleRegisterPayment} className="space-y-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Monto ($)</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        placeholder="0.00"
+                                        value={newPayment.amount}
+                                        onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-black text-lg focus:border-emerald-500 outline-none transition-all placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Meses</label>
+                                    <select
+                                        value={newPayment.durationMonths}
+                                        onChange={(e) => setNewPayment({ ...newPayment, durationMonths: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:ring-emerald-500 outline-none transition-all"
+                                    >
+                                        <option value="1">1 Mes</option>
+                                        <option value="3">3 Meses</option>
+                                        <option value="6">6 Meses</option>
+                                        <option value="12">12 Meses (Año)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Servicio / Plan</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ej: Plan Platinum, Cuenta Netflix..."
+                                    value={newPayment.service}
+                                    onChange={(e) => setNewPayment({ ...newPayment, service: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-emerald-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Fecha de Pago</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={newPayment.paymentDate}
+                                    onChange={(e) => setNewPayment({ ...newPayment, paymentDate: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-emerald-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Notas (Opcional)</label>
+                                <textarea
+                                    placeholder="Detalles del pago..."
+                                    value={newPayment.notes}
+                                    onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-medium focus:border-emerald-500 outline-none transition-all resize-none h-20"
+                                />
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPaymentModal(false)}
+                                    className="flex-1 px-6 py-4 rounded-xl text-xs font-black text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest"
+                                >
+                                    Cerrar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={registeringPayment}
+                                    className="flex-[2] px-6 py-4 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 shadow-xl shadow-emerald-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest"
+                                >
+                                    {registeringPayment ? 'Guardando...' : 'Confirmar Pago'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Seleccionar Plantilla */}
+            {showTemplateModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-8 border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh] transition-colors">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+                                    <span className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 text-xl">📋</span>
+                                    Plantillas de WhatsApp
+                                </h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Selecciona una plantilla oficial para enviar.</p>
+                            </div>
+                            <button onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); }} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                        </div>
+
+                        {!selectedTemplate ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pr-2 custom-scrollbar">
+                                {templates.map(t => (
+                                    <button
+                                        key={t._id.toString()}
+                                        onClick={() => {
+                                            setSelectedTemplate(t);
+                                            const vars: { [key: string]: string } = {};
+                                            t.variables.forEach(v => vars[v] = '');
+                                            setTemplateVariables(vars);
+                                        }}
+                                        className="text-left p-4 rounded-2xl border-2 border-gray-100 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all group"
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-[10px] font-black bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded uppercase tracking-wider">
+                                                {t.category}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-gray-400">{t.language.toUpperCase()}</span>
+                                        </div>
+                                        <h4 className="font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 italic">
+                                            {t.components.find(c => c.type === 'BODY')?.text}
+                                        </p>
+                                    </button>
+                                ))}
+                                {templates.length === 0 && (
+                                    <div className="col-span-2 py-12 text-center">
+                                        <p className="text-gray-400 italic">No hay plantillas registradas. Agrega algunas en la configuración.</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-800">
+                                    <h4 className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Vista Previa</h4>
+                                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm max-w-sm">
+                                        <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                                            {selectedTemplate.components.find(c => c.type === 'BODY')?.text?.replace(/\{\{(\d+)\}\}/g, (_, num) => templateVariables[num] || `{{${num}}}`)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {selectedTemplate.variables.length > 0 && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Variables Dinámicas</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {selectedTemplate.variables.map(v => (
+                                                <div key={v}>
+                                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase">Dato {v}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={templateVariables[v] || ''}
+                                                        onChange={(e) => setTemplateVariables({ ...templateVariables, [v]: e.target.value })}
+                                                        placeholder={`Valor para {{${v}}}`}
+                                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-4 pt-4 sticky bottom-0 bg-white dark:bg-slate-900 py-2 mt-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedTemplate(null)}
+                                        className="flex-1 px-6 py-3 rounded-xl text-xs font-black text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest"
+                                    >
+                                        Volver
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setSending(true);
+                                            try {
+                                                const components = [{
+                                                    type: 'body',
+                                                    parameters: selectedTemplate.variables.map(v => ({
+                                                        type: 'text',
+                                                        text: templateVariables[v] || ''
+                                                    }))
+                                                }];
+
+                                                const res = await fetch(`/api/clients/${params.clientId}/messages`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        templateName: selectedTemplate.name,
+                                                        templateLanguage: selectedTemplate.language,
+                                                        templateComponents: components
+                                                    })
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    setShowTemplateModal(false);
+                                                    setSelectedTemplate(null);
+                                                    fetchMessages();
+                                                } else {
+                                                    alert('Error: ' + data.error);
+                                                }
+                                            } catch (error) {
+                                                console.error(error);
+                                            } finally {
+                                                setSending(false);
+                                            }
+                                        }}
+                                        disabled={sending}
+                                        className="flex-[2] px-6 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 shadow-xl shadow-blue-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest"
+                                    >
+                                        {sending ? 'Enviando...' : 'Enviar Plantilla'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
-        .pattern {
-          background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-          background-repeat: repeat;
-        }
-      `}</style>
+                .pattern {
+                    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+                    background-repeat: repeat;
+                }
+            `}</style>
         </div>
     );
 }
-

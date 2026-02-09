@@ -180,6 +180,12 @@ export default function DashboardPage() {
                             {darkMode ? '☀️' : '🌙'}
                         </button>
                         <button
+                            onClick={() => router.push('/dashboard/templates')}
+                            className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                        >
+                            Plantillas
+                        </button>
+                        <button
                             onClick={() => router.push('/setup')}
                             className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
                         >
