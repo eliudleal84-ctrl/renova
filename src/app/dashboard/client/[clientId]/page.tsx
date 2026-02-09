@@ -918,13 +918,14 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                         onClick={async () => {
                                             setSending(true);
                                             try {
-                                                const components = [{
+                                                const hasVariables = selectedTemplate.variables && selectedTemplate.variables.length > 0;
+                                                const components = hasVariables ? [{
                                                     type: 'body',
                                                     parameters: selectedTemplate.variables.map(v => ({
                                                         type: 'text',
                                                         text: templateVariables[v] || ''
                                                     }))
-                                                }];
+                                                }] : undefined;
 
                                                 const res = await fetch(`/api/clients/${params.clientId}/messages`, {
                                                     method: 'POST',
@@ -941,7 +942,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                                     setSelectedTemplate(null);
                                                     fetchMessages();
                                                 } else {
-                                                    alert('Error: ' + data.error);
+                                                    const errorMsg = data.error + (data.details ? '\n' + JSON.stringify(data.details) : '');
+                                                    alert('Error de WhatsApp: ' + errorMsg);
                                                 }
                                             } catch (error) {
                                                 console.error(error);
