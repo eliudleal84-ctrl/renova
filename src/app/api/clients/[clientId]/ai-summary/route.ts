@@ -6,10 +6,6 @@ import Message from '@/models/Message';
 import Conversation from '@/models/Conversation';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ clientId: string }> }
@@ -22,6 +18,10 @@ export async function POST(
         if (!process.env.OPENAI_API_KEY) {
             return NextResponse.json({ success: false, error: 'OpenAI API Key no configurada' }, { status: 500 });
         }
+
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
 
         await connectDB();
 
