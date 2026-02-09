@@ -28,6 +28,9 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [newPayment, setNewPayment] = useState({ amount: '', service: '', durationMonths: '1', notes: '', paymentDate: new Date().toISOString().split('T')[0] });
     const [registeringPayment, setRegisteringPayment] = useState(false);
+    const [editingPayment, setEditingPayment] = useState<IPayment | null>(null);
+    const [showEditPaymentModal, setShowEditPaymentModal] = useState(false);
+    const [editPaymentData, setEditPaymentData] = useState({ amount: '', service: '', notes: '', paymentDate: '' });
 
     // Estados para Sugerencias de IA
     const [suggestingResponse, setSuggestingResponse] = useState(false);
@@ -175,6 +178,55 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             console.error('Error registering payment:', error);
         } finally {
             setRegisteringPayment(false);
+        }
+    };
+
+    const handleEditPayment = (payment: IPayment) => {
+        setEditingPayment(payment);
+        setEditPaymentData({
+            amount: payment.amount.toString(),
+            service: payment.service,
+            notes: payment.notes || '',
+            paymentDate: new Date(payment.paymentDate).toISOString().split('T')[0]
+        });
+        setShowEditPaymentModal(true);
+    };
+
+    const handleUpdatePayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingPayment) return;
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/payments/${editingPayment._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editPaymentData)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowEditPaymentModal(false);
+                fetchData();
+            } else {
+                alert('Error al actualizar pago: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error updating payment:', error);
+        }
+    };
+
+    const handleDeletePayment = async (paymentId: string) => {
+        if (!confirm('¿Estás seguro de que deseas eliminar este pago? Si es el pago más reciente, la fecha de vencimiento del cliente se revertirá al pago anterior.')) return;
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/payments/${paymentId}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchData();
+            } else {
+                alert('Error al eliminar pago: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error deleting payment:', error);
         }
     };
 
@@ -577,6 +629,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                     <th className="px-6 py-4">Duración</th>
                                     <th className="px-6 py-4">Monto</th>
                                     <th className="px-6 py-4">Nuevo Vencimiento</th>
+                                    <th className="px-6 py-4 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -600,6 +653,24 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">
                                                 {new Date(p.newExpirationDate).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex justify-center gap-3">
+                                                    <button
+                                                        onClick={() => handleEditPayment(p)}
+                                                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                                                        title="Editar Pago"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeletePayment(p._id.toString())}
+                                                        className="text-gray-400 hover:text-red-600 transition-colors"
+                                                        title="Eliminar Pago"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -821,6 +892,83 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                     className="flex-[2] px-6 py-4 bg-emerald-600 text-white rounded-xl text-xs font-black hover:bg-emerald-700 shadow-xl shadow-emerald-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest"
                                 >
                                     {registeringPayment ? 'Guardando...' : 'Confirmar Pago'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Editar Pago */}
+            {showEditPaymentModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-100 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Editar Pago</h2>
+                                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">ID: {editingPayment?._id.toString().slice(-6)}</p>
+                            </div>
+                            <button onClick={() => setShowEditPaymentModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                        </div>
+
+                        <form onSubmit={handleUpdatePayment} className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Monto ($)</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        value={editPaymentData.amount}
+                                        onChange={(e) => setEditPaymentData({ ...editPaymentData, amount: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-black text-lg focus:border-blue-500 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Servicio / Plan</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editPaymentData.service}
+                                    onChange={(e) => setEditPaymentData({ ...editPaymentData, service: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Fecha de Pago</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={editPaymentData.paymentDate}
+                                    onChange={(e) => setEditPaymentData({ ...editPaymentData, paymentDate: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">Notas (Opcional)</label>
+                                <textarea
+                                    value={editPaymentData.notes}
+                                    onChange={(e) => setEditPaymentData({ ...editPaymentData, notes: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-medium focus:border-blue-500 outline-none transition-all h-20"
+                                />
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditPaymentModal(false)}
+                                    className="flex-1 px-6 py-4 rounded-xl text-xs font-black text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 shadow-xl transition-all active:scale-95 uppercase tracking-widest"
+                                >
+                                    Guardar Cambios
                                 </button>
                             </div>
                         </form>
