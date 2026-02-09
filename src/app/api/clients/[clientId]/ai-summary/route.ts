@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Message from '@/models/Message';
+import Conversation from '@/models/Conversation';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -24,21 +25,24 @@ export async function POST(
 
         await connectDB();
 
-        // 1. Obtener los últimos 20 mensajes de la conversación
-        // Nota: Primero necesitamos encontrar la conversación
-        const messages = await Message.find({
+        // 1. Encontrar la conversación para este cliente
+        const conversation = await Conversation.findOne({
+            userId: session.user.id,
+            clientId: clientId
+        }).lean();
+
+        if (!conversation) {
+            return NextResponse.json({ success: false, error: 'Conversación no encontrada' }, { status: 404 });
+        }
+
+        // 2. Obtener los últimos 20 mensajes de esta conversación específica
+        const relevantMessages = await Message.find({
+            conversationId: conversation._id,
             userId: session.user.id
         })
-            .populate({
-                path: 'conversationId',
-                match: { clientId: clientId }
-            })
             .sort({ timestamp: -1 })
             .limit(20)
             .lean();
-
-        // Filtrar solo los mensajes que pertenecen a este cliente (por si el populate falló o trajo otros)
-        const relevantMessages = messages.filter(m => m.conversationId !== null);
 
         if (relevantMessages.length === 0) {
             return NextResponse.json({ success: false, error: 'No hay mensajes para resumir' }, { status: 400 });

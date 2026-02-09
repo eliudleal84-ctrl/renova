@@ -5,14 +5,15 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 import { use } from 'react';
+import { IClient, IMessage, IReminder } from '@/types';
 
 export default function ClientDetailPage({ params: paramsPromise }: { params: Promise<{ clientId: string }> }) {
     const params = use(paramsPromise);
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [client, setClient] = useState<any>(null);
-    const [messages, setMessages] = useState<any[]>([]);
-    const [reminders, setReminders] = useState<any[]>([]);
+    const [client, setClient] = useState<IClient | null>(null);
+    const [messages, setMessages] = useState<IMessage[]>([]);
+    const [reminders, setReminders] = useState<IReminder[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
@@ -313,7 +314,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                     <textarea
                         placeholder="Añade detalles importantes, deudas o recordatorios..."
                         className="w-full text-base border-2 border-gray-100 rounded-lg focus:border-blue-200 focus:ring-0 p-3 text-gray-900 h-24 resize-none leading-relaxed"
-                        defaultValue={client.notes}
+                        defaultValue={client?.notes || ''}
                         onBlur={(e) => fetch(`/api/clients/${params.clientId}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
@@ -329,7 +330,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                 <label className="block text-xs font-bold text-gray-500 mb-1">FECHA DE VENCIMIENTO</label>
                                 <input
                                     type="date"
-                                    defaultValue={client.expirationDate ? new Date(client.expirationDate).toISOString().split('T')[0] : ''}
+                                    defaultValue={client?.expirationDate ? new Date(client.expirationDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => fetch(`/api/clients/${params.clientId}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
@@ -341,7 +342,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                         </div>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-4 font-medium italic">
-                        Última interacción registrada: {new Date(client.lastInteraction).toLocaleString()}
+                        Última interacción registrada: {client?.lastInteraction ? new Date(client.lastInteraction).toLocaleString() : ''}
                     </p>
                 </div>
             </div>
@@ -361,16 +362,16 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
 
                     <div className="space-y-3">
                         {reminders.length > 0 ? (
-                            reminders.map((rem: any) => (
+                            reminders.map((rem: IReminder) => (
                                 <div
-                                    key={rem._id}
+                                    key={rem._id.toString()}
                                     className={`flex items-center justify-between p-4 rounded-xl border transition-all ${rem.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-blue-50 hover:border-blue-200'}`}
                                 >
                                     <div className="flex items-center gap-4">
                                         <input
                                             type="checkbox"
                                             checked={rem.completed}
-                                            onChange={(e) => handleToggleReminder(rem._id, e.target.checked)}
+                                            onChange={(e) => handleToggleReminder(rem._id.toString(), e.target.checked)}
                                             className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                         />
                                         <div>
@@ -391,7 +392,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleDeleteReminder(rem._id)}
+                                        onClick={() => handleDeleteReminder(rem._id.toString())}
                                         className="text-gray-300 hover:text-red-500 transition-colors"
                                     >
                                         <span className="text-xl">×</span>

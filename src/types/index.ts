@@ -31,9 +31,9 @@ export interface ClientWithConversation extends IClient {
     lastMessage?: string;
 }
 
-// Conversation with client details
-export interface ConversationWithClient extends IConversation {
-    client: IClient;
+// Conversation with client details (populated)
+export interface ConversationWithClient extends Omit<IConversation, 'clientId'> {
+    clientId: IClient;
 }
 
 // Message list response
@@ -43,9 +43,9 @@ export interface MessageListResponse {
     total: number;
 }
 
-// Reminder with client details
-export interface ReminderWithClient extends IReminder {
-    client: IClient;
+// Reminder with client details (populated)
+export interface ReminderWithClient extends Omit<IReminder, 'clientId'> {
+    clientId: IClient;
 }
 
 // AI Summary response

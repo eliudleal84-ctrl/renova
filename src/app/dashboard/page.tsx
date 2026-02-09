@@ -5,14 +5,14 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ConversationWithClient } from '@/types';
+import { ConversationWithClient, IClient, IReminder, ReminderWithClient } from '@/types';
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [configMissing, setConfigMissing] = useState(false);
-    const [conversations, setConversations] = useState<any[]>([]);
-    const [reminderData, setReminderData] = useState<{ expiringClients: any[], manualReminders: any[] }>({ expiringClients: [], manualReminders: [] });
+    const [conversations, setConversations] = useState<ConversationWithClient[]>([]);
+    const [reminderData, setReminderData] = useState<{ expiringClients: IClient[], manualReminders: ReminderWithClient[] }>({ expiringClients: [], manualReminders: [] });
     const [loadingConv, setLoadingConv] = useState(true);
     const [loadingReminders, setLoadingReminders] = useState(true);
 
@@ -103,7 +103,7 @@ export default function DashboardPage() {
                             Configuración
                         </button>
                         <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
-                            <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                            <span className="text-sm font-medium text-gray-700">{session.user?.name}</span>
                             <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
@@ -156,8 +156,8 @@ export default function DashboardPage() {
                                 ) : conversations.length > 0 ? (
                                     conversations.map((conv) => (
                                         <Link
-                                            key={conv._id}
-                                            href={`/dashboard/client/${conv.clientId?._id || ''}`}
+                                            key={conv._id.toString()}
+                                            href={`/dashboard/client/${conv.clientId?._id?.toString() || ''}`}
                                             className="block p-6 hover:bg-blue-50/50 transition-colors"
                                         >
                                             <div className="flex justify-between items-start">
@@ -215,11 +215,11 @@ export default function DashboardPage() {
                                     <div className="text-center py-4 text-gray-400 text-sm">Cargando...</div>
                                 ) : reminderData.expiringClients?.length > 0 ? (
                                     reminderData.expiringClients.map((client) => {
-                                        const isOverdue = new Date(client.expirationDate) < new Date();
+                                        const isOverdue = client.expirationDate && new Date(client.expirationDate) < new Date();
                                         return (
                                             <Link
-                                                key={client._id}
-                                                href={`/dashboard/client/${client._id}`}
+                                                key={client._id.toString()}
+                                                href={`/dashboard/client/${client._id.toString()}`}
                                                 className={`block p-4 rounded-xl border transition-all hover:shadow-md ${isOverdue
                                                     ? 'bg-red-50 border-red-100 hover:bg-red-100'
                                                     : 'bg-gray-50 border-gray-100 hover:bg-blue-50'
@@ -230,7 +230,7 @@ export default function DashboardPage() {
                                                         {isOverdue ? '❌ Vencido' : '⏳ Por vencer'}
                                                     </span>
                                                     <span className="text-[10px] text-gray-400 font-bold">
-                                                        {new Date(client.expirationDate).toLocaleDateString()}
+                                                        {client.expirationDate ? new Date(client.expirationDate).toLocaleDateString() : 'N/A'}
                                                     </span>
                                                 </div>
                                                 <h4 className="text-sm font-bold text-gray-900 truncate">
@@ -256,10 +256,10 @@ export default function DashboardPage() {
                                 {loadingReminders ? (
                                     <div className="text-center py-4 text-gray-400 text-sm">Cargando...</div>
                                 ) : reminderData.manualReminders?.length > 0 ? (
-                                    reminderData.manualReminders.map((rem) => (
+                                    reminderData.manualReminders.map((rem: ReminderWithClient) => (
                                         <Link
-                                            key={rem._id}
-                                            href={`/dashboard/client/${rem.clientId?._id || ''}`}
+                                            key={rem._id.toString()}
+                                            href={`/dashboard/client/${rem.clientId?._id?.toString() || ''}`}
                                             className="block p-4 rounded-xl border border-gray-100 bg-white hover:border-blue-200 transition-all hover:shadow-md"
                                         >
                                             <div className="flex justify-between items-start mb-1">
