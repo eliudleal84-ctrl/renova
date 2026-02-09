@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* Configurar modo oscuro manual para Tailwind 4 */
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
 }
 
 @theme inline {
