@@ -1,4 +1,5 @@
 'use client';
+// Build trigger: AI Summary integration v1.1
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -263,8 +264,8 @@ export default function DashboardPage() {
                                         >
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 text-red-600' :
-                                                        rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
-                                                            'bg-blue-100 text-blue-600'
+                                                    rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
+                                                        'bg-blue-100 text-blue-600'
                                                     }`}>
                                                     {rem.type}
                                                 </span>
