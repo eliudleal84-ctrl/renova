@@ -3,15 +3,20 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { ConversationWithClient } from '@/types';
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [configMissing, setConfigMissing] = useState(false);
+    const [conversations, setConversations] = useState<any[]>([]);
+    const [loadingConv, setLoadingConv] = useState(true);
 
     useEffect(() => {
         if (status === 'authenticated') {
             checkConfig();
+            fetchConversations();
         }
     }, [status]);
 
@@ -27,9 +32,23 @@ export default function DashboardPage() {
         }
     };
 
+    const fetchConversations = async () => {
+        try {
+            const response = await fetch('/api/conversations');
+            const data = await response.json();
+            if (data.success) {
+                setConversations(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching conversations:', error);
+        } finally {
+            setLoadingConv(false);
+        }
+    };
+
     if (status === 'loading') {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
@@ -42,7 +61,7 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
-            <header className="bg-white shadow-sm border-b border-gray-200">
+            <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -58,7 +77,7 @@ export default function DashboardPage() {
                             Configuración
                         </button>
                         <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
-                            <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                            <span className="text-sm font-medium text-gray-1000">{session.user.name}</span>
                             <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
@@ -72,7 +91,7 @@ export default function DashboardPage() {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 {configMissing && (
-                    <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center justify-between">
+                    <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 text-2xl">
                                 ⚠️
@@ -91,48 +110,101 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="md:col-span-2 space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Columna Principal: Conversaciones */}
+                    <div className="lg:col-span-2 space-y-8">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                 <h2 className="text-lg font-bold text-gray-900">Conversaciones Recientes</h2>
-                                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">Próximamente</span>
+                                <button
+                                    onClick={fetchConversations}
+                                    className="text-sm text-blue-600 hover:underline"
+                                >
+                                    Actualizar
+                                </button>
                             </div>
-                            <div className="p-12 text-center">
-                                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <span className="text-4xl text-gray-300">💬</span>
-                                </div>
-                                <h3 className="text-gray-900 font-semibold mb-1">No hay conversaciones aún</h3>
-                                <p className="text-gray-500 text-sm max-w-sm mx-auto">Las conversaciones aparecerán aquí una vez que conectes WhatsApp y recibas tu primer mensaje.</p>
+
+                            <div className="divide-y divide-gray-100">
+                                {loadingConv ? (
+                                    <div className="p-12 text-center text-gray-400">Cargando conversaciones...</div>
+                                ) : conversations.length > 0 ? (
+                                    conversations.map((conv) => (
+                                        <Link
+                                            key={conv._id}
+                                            href={`/dashboard/client/${conv.clientId?._id || ''}`}
+                                            className="block p-6 hover:bg-blue-50/50 transition-colors"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex gap-4">
+                                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg shadow-sm">
+                                                        {(conv.clientId?.name || 'C')[0]}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900">{conv.clientId?.name || conv.phoneNumber}</h4>
+                                                        <p className="text-sm text-gray-500">{conv.phoneNumber}</p>
+                                                        <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold ${conv.clientId?.status === 'Nuevo' ? 'bg-green-100 text-green-800' :
+                                                                conv.clientId?.status === 'Interesado' ? 'bg-blue-100 text-blue-800' :
+                                                                    'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                            {conv.clientId?.status || 'Nuevo'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-gray-400">
+                                                        {new Date(conv.lastMessageAt).toLocaleDateString()}
+                                                    </p>
+                                                    {conv.unreadCount > 0 && (
+                                                        <span className="inline-flex mt-1 items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-blue-600 rounded-full">
+                                                            {conv.unreadCount}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="p-12 text-center">
+                                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <span className="text-4xl text-gray-300">💬</span>
+                                        </div>
+                                        <h3 className="text-gray-900 font-semibold mb-1">No hay conversaciones aún</h3>
+                                        <p className="text-gray-500 text-sm max-w-sm mx-auto">Las conversaciones aparecerán aquí una vez que conectes WhatsApp y recibas tu primer mensaje.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
 
+                    {/* Columna Lateral */}
                     <div className="space-y-8">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                            <h2 className="text-lg font-bold text-gray-900 mb-4">Próximas Renovaciones</h2>
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <span>📅</span> Próximas Renovaciones
+                            </h2>
                             <div className="space-y-4">
-                                <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm">
+                                <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm border border-dashed border-gray-200">
                                     Aún no hay renovaciones programadas
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white text-center">
-                            <h3 className="text-lg font-bold mb-2">✅ Fase 1 & 2 en curso</h3>
-                            <p className="text-blue-100 text-sm mb-4">La infraestructura base y la integración con WhatsApp están listas.</p>
-                            <div className="text-left space-y-2">
-                                <div className="flex items-center gap-2 text-xs">
-                                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                                    <span>Auth & DB (MVP)</span>
+                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white overflow-hidden relative">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">🚀</div>
+                            <h3 className="text-lg font-bold mb-2">Estado del Sistema</h3>
+                            <p className="text-blue-100 text-sm mb-4">RENOVA está conectado y listo para procesar tus ventas.</p>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between text-xs bg-white/10 p-2 rounded-lg">
+                                    <span>WhatsApp Cloud API</span>
+                                    <span className="text-green-300 font-bold">ACTIVO</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                                    <span>WhatsApp Webhook</span>
+                                <div className="flex items-center justify-between text-xs bg-white/10 p-2 rounded-lg">
+                                    <span>Base de Datos</span>
+                                    <span className="text-green-300 font-bold">ONLINE</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                                    <span>WhatsApp API Utility</span>
+                                <div className="flex items-center justify-between text-xs bg-white/10 p-2 rounded-lg">
+                                    <span>Sincronización</span>
+                                    <span className="text-blue-200">TIEMPO REAL</span>
                                 </div>
                             </div>
                         </div>
