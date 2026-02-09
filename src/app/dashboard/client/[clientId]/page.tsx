@@ -135,12 +135,15 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                         <select
                             value={client.status}
                             onChange={(e) => updateStatus(e.target.value)}
-                            className="px-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                            className="px-4 py-2 bg-blue-600 text-white border-none rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-400 shadow-md cursor-pointer appearance-none"
                         >
-                            <option value="Nuevo">Nuevo</option>
-                            <option value="Interesado">Interesado</option>
-                            <option value="Proximamente">Próximamente</option>
-                            <option value="Cancelado">Cancelado</option>
+                            <option value="Nuevo">NUEVO</option>
+                            <option value="Interesado">INTERESADO</option>
+                            <option value="Pagado">PAGADO</option>
+                            <option value="Renovación">RENOVACIÓN</option>
+                            <option value="Próximamente">PRÓXIMAMENTE</option>
+                            <option value="Perdido">PERDIDO</option>
+                            <option value="Cancelado">CANCELADO</option>
                         </select>
                     </div>
                 </div>
@@ -157,11 +160,11 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                             className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${msg.direction === 'outgoing'
-                                ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
-                                : 'bg-white text-gray-800 rounded-tl-none'
+                                    ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none border-l-4 border-green-500'
+                                    : 'bg-white text-gray-900 rounded-tl-none border-l-4 border-blue-500'
                                 }`}>
-                                <p className="text-sm">{msg.body}</p>
-                                <p className="text-[10px] text-gray-400 mt-1 text-right">
+                                <p className="text-sm font-medium leading-relaxed">{msg.body}</p>
+                                <p className="text-[10px] text-gray-500 mt-2 text-right font-bold">
                                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                             </div>
@@ -177,13 +180,13 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                             type="text"
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Escribe un mensaje..."
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none shadow-sm text-gray-900"
+                            placeholder="Escribe un mensaje aquí..."
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none shadow-inner text-gray-900 font-medium"
                         />
                         <button
                             type="submit"
                             disabled={!newMessage.trim() || sending}
-                            className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-shadow shadow-md disabled:bg-gray-400"
+                            className="w-14 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:bg-gray-400"
                         >
                             {sending ? '...' : '➤'}
                         </button>
@@ -192,12 +195,12 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             </div>
 
             {/* Footer Info Area */}
-            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Notas del Cliente</h3>
+            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+                    <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em] mb-4">Notas del Cliente</h3>
                     <textarea
-                        placeholder="Escribe recordatorios o detalles aquí..."
-                        className="w-full text-sm border-none focus:ring-0 p-0 text-gray-900 h-20 resize-none bg-transparent"
+                        placeholder="Añade detalles importantes, deudas o recordatorios..."
+                        className="w-full text-base border-2 border-gray-100 rounded-lg focus:border-blue-200 focus:ring-0 p-3 text-gray-900 h-24 resize-none leading-relaxed"
                         defaultValue={client.notes}
                         onBlur={(e) => fetch(`/api/clients/${params.clientId}`, {
                             method: 'PUT',
@@ -206,12 +209,28 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                         })}
                     />
                 </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Info del Servicio</h3>
-                    <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-900">Vencimiento: <span className="text-blue-600">{client.expirationDate ? new Date(client.expirationDate).toLocaleDateString() : 'No definido'}</span></p>
-                        <p className="text-xs text-gray-500">Última interacción: {new Date(client.lastInteraction).toLocaleString()}</p>
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em] mb-4">Gestión de Servicio</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">FECHA DE VENCIMIENTO</label>
+                                <input
+                                    type="date"
+                                    defaultValue={client.expirationDate ? new Date(client.expirationDate).toISOString().split('T')[0] : ''}
+                                    onChange={(e) => fetch(`/api/clients/${params.clientId}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ expirationDate: e.target.value })
+                                    })}
+                                    className="w-full px-3 py-2 border-2 border-gray-100 rounded-lg text-gray-900 font-bold focus:border-blue-500 outline-none"
+                                />
+                            </div>
+                        </div>
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-4 font-medium italic italic">
+                        Última interacción registrada: {new Date(client.lastInteraction).toLocaleString()}
+                    </p>
                 </div>
             </div>
 

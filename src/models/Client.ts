@@ -1,6 +1,6 @@
 import mongoose, { Schema, Model } from 'mongoose';
 
-export type ClientStatus = 'Nuevo' | 'Interesado' | 'Pagado' | 'Renovación' | 'Perdido';
+export type ClientStatus = 'Nuevo' | 'Interesado' | 'Pagado' | 'Renovación' | 'Perdido' | 'Próximamente' | 'Cancelado';
 
 export interface IClient {
     _id: mongoose.Types.ObjectId;
@@ -35,7 +35,7 @@ const ClientSchema = new Schema<IClient>(
         },
         status: {
             type: String,
-            enum: ['Nuevo', 'Interesado', 'Pagado', 'Renovación', 'Perdido'],
+            enum: ['Nuevo', 'Interesado', 'Pagado', 'Renovación', 'Perdido', 'Próximamente', 'Cancelado'],
             default: 'Nuevo',
             index: true,
         },

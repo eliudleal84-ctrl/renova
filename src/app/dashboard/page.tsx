@@ -147,9 +147,11 @@ export default function DashboardPage() {
                                                     <div>
                                                         <h4 className="font-bold text-gray-900">{conv.clientId?.name || conv.phoneNumber}</h4>
                                                         <p className="text-sm text-gray-500">{conv.phoneNumber}</p>
-                                                        <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold ${conv.clientId?.status === 'Nuevo' ? 'bg-green-100 text-green-800' :
-                                                            conv.clientId?.status === 'Interesado' ? 'bg-blue-100 text-blue-800' :
-                                                                'bg-gray-100 text-gray-800'
+                                                        <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${conv.clientId?.status === 'Nuevo' ? 'bg-green-600 text-white' :
+                                                                conv.clientId?.status === 'Interesado' ? 'bg-blue-600 text-white' :
+                                                                    conv.clientId?.status === 'Pagado' ? 'bg-emerald-600 text-white' :
+                                                                        conv.clientId?.status === 'Renovación' ? 'bg-orange-600 text-white' :
+                                                                            'bg-gray-600 text-white'
                                                             }`}>
                                                             {conv.clientId?.status || 'Nuevo'}
                                                         </span>
