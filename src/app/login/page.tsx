@@ -82,8 +82,8 @@ export default function LoginPage() {
                     <button
                         onClick={() => setIsLogin(true)}
                         className={`flex-1 py-2 rounded-lg font-medium transition-colors ${isLogin
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         Iniciar Sesión
@@ -91,8 +91,8 @@ export default function LoginPage() {
                     <button
                         onClick={() => setIsLogin(false)}
                         className={`flex-1 py-2 rounded-lg font-medium transition-colors ${!isLogin
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         Registrarse
@@ -111,7 +111,7 @@ export default function LoginPage() {
                                 onChange={(e) =>
                                     setFormData({ ...formData, name: e.target.value })
                                 }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                                 required={!isLogin}
                             />
                         </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, email: e.target.value })
                             }
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             required
                         />
                     </div>
@@ -142,7 +142,7 @@ export default function LoginPage() {
                             onChange={(e) =>
                                 setFormData({ ...formData, password: e.target.value })
                             }
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             required
                             minLength={6}
                         />
