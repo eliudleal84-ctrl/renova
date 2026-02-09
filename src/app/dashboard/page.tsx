@@ -11,15 +11,21 @@ export default function DashboardPage() {
     const router = useRouter();
     const [configMissing, setConfigMissing] = useState(false);
     const [conversations, setConversations] = useState<any[]>([]);
+    const [reminders, setReminders] = useState<any[]>([]);
     const [loadingConv, setLoadingConv] = useState(true);
+    const [loadingReminders, setLoadingReminders] = useState(true);
 
     useEffect(() => {
         if (status === 'authenticated') {
             checkConfig();
             fetchConversations();
+            fetchReminders();
 
             // Auto-actualizar cada 30 segundos
-            const interval = setInterval(fetchConversations, 30000);
+            const interval = setInterval(() => {
+                fetchConversations();
+                fetchReminders();
+            }, 30000);
             return () => clearInterval(interval);
         }
     }, [status]);
@@ -48,6 +54,20 @@ export default function DashboardPage() {
             console.error('Error fetching conversations:', error);
         } finally {
             setLoadingConv(false);
+        }
+    };
+
+    const fetchReminders = async () => {
+        try {
+            const response = await fetch('/api/dashboard/reminders');
+            const data = await response.json();
+            if (data.success) {
+                setReminders(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching reminders:', error);
+        } finally {
+            setLoadingReminders(false);
         }
     };
 
@@ -148,10 +168,10 @@ export default function DashboardPage() {
                                                         <h4 className="font-bold text-gray-900">{conv.clientId?.name || conv.phoneNumber}</h4>
                                                         <p className="text-sm text-gray-500">{conv.phoneNumber}</p>
                                                         <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${conv.clientId?.status === 'Nuevo' ? 'bg-green-600 text-white' :
-                                                                conv.clientId?.status === 'Interesado' ? 'bg-blue-600 text-white' :
-                                                                    conv.clientId?.status === 'Pagado' ? 'bg-emerald-600 text-white' :
-                                                                        conv.clientId?.status === 'Renovación' ? 'bg-orange-600 text-white' :
-                                                                            'bg-gray-600 text-white'
+                                                            conv.clientId?.status === 'Interesado' ? 'bg-blue-600 text-white' :
+                                                                conv.clientId?.status === 'Pagado' ? 'bg-emerald-600 text-white' :
+                                                                    conv.clientId?.status === 'Renovación' ? 'bg-orange-600 text-white' :
+                                                                        'bg-gray-600 text-white'
                                                             }`}>
                                                             {conv.clientId?.status || 'Nuevo'}
                                                         </span>
@@ -190,9 +210,39 @@ export default function DashboardPage() {
                                 <span>📅</span> Próximas Renovaciones
                             </h2>
                             <div className="space-y-4">
-                                <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm border border-dashed border-gray-200">
-                                    Aún no hay renovaciones programadas
-                                </div>
+                                {loadingReminders ? (
+                                    <div className="text-center py-4 text-gray-400 text-sm">Cargando...</div>
+                                ) : reminders.length > 0 ? (
+                                    reminders.map((client) => {
+                                        const isOverdue = new Date(client.expirationDate) < new Date();
+                                        return (
+                                            <Link
+                                                key={client._id}
+                                                href={`/dashboard/client/${client._id}`}
+                                                className={`block p-4 rounded-xl border transition-all hover:shadow-md ${isOverdue
+                                                    ? 'bg-red-50 border-red-100 hover:bg-red-100'
+                                                    : 'bg-gray-50 border-gray-100 hover:bg-blue-50'
+                                                    }`}
+                                            >
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
+                                                        {isOverdue ? '❌ Vencido' : '⏳ Por vencer'}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400 font-bold">
+                                                        {new Date(client.expirationDate).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <h4 className="text-sm font-bold text-gray-900 truncate">
+                                                    {client.name || client.phoneNumber}
+                                                </h4>
+                                            </Link>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm border border-dashed border-gray-200">
+                                        Aún no hay renovaciones programadas
+                                    </div>
+                                )}
                             </div>
                         </div>
 
