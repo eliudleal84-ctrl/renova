@@ -17,6 +17,10 @@ export default function DashboardPage() {
         if (status === 'authenticated') {
             checkConfig();
             fetchConversations();
+
+            // Auto-actualizar cada 30 segundos
+            const interval = setInterval(fetchConversations, 30000);
+            return () => clearInterval(interval);
         }
     }, [status]);
 
@@ -32,7 +36,8 @@ export default function DashboardPage() {
         }
     };
 
-    const fetchConversations = async () => {
+    const fetchConversations = async (manual = false) => {
+        if (manual) setLoadingConv(true);
         try {
             const response = await fetch('/api/conversations');
             const data = await response.json();
@@ -77,7 +82,7 @@ export default function DashboardPage() {
                             Configuración
                         </button>
                         <div className="flex items-center gap-3 pl-6 border-l border-gray-200">
-                            <span className="text-sm font-medium text-gray-1000">{session.user.name}</span>
+                            <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
                             <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
@@ -117,7 +122,7 @@ export default function DashboardPage() {
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                 <h2 className="text-lg font-bold text-gray-900">Conversaciones Recientes</h2>
                                 <button
-                                    onClick={fetchConversations}
+                                    onClick={() => fetchConversations(true)}
                                     className="text-sm text-blue-600 hover:underline"
                                 >
                                     Actualizar
@@ -143,8 +148,8 @@ export default function DashboardPage() {
                                                         <h4 className="font-bold text-gray-900">{conv.clientId?.name || conv.phoneNumber}</h4>
                                                         <p className="text-sm text-gray-500">{conv.phoneNumber}</p>
                                                         <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold ${conv.clientId?.status === 'Nuevo' ? 'bg-green-100 text-green-800' :
-                                                                conv.clientId?.status === 'Interesado' ? 'bg-blue-100 text-blue-800' :
-                                                                    'bg-gray-100 text-gray-800'
+                                                            conv.clientId?.status === 'Interesado' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-gray-100 text-gray-800'
                                                             }`}>
                                                             {conv.clientId?.status || 'Nuevo'}
                                                         </span>
