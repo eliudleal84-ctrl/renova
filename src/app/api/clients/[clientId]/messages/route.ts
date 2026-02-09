@@ -67,10 +67,16 @@ export async function POST(
         if (!conversation) return NextResponse.json({ success: false, error: 'Conversación no encontrada' }, { status: 404 });
 
         // 3. Enviar vía WhatsApp Cloud API
+        // Limpiar el número: quitar el '1' extra en números de México (521... -> 52...)
+        let cleanPhone = conversation.phoneNumber.replace(/\D/g, '');
+        if (cleanPhone.startsWith('521') && cleanPhone.length === 13) {
+            cleanPhone = '52' + cleanPhone.substring(3);
+        }
+
         const waResult = await sendWhatsAppMessage({
             accessToken: user.whatsappToken,
             phoneId: user.whatsappPhoneId,
-            to: conversation.phoneNumber,
+            to: cleanPhone,
             text: messageText
         });
 
