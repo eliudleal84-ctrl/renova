@@ -22,6 +22,11 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
     const [darkMode, setDarkMode] = useState(false);
+
+    // Estados para Sugerencias de IA
+    const [suggestingResponse, setSuggestingResponse] = useState(false);
+    const [showAiMenu, setShowAiMenu] = useState(false);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const isFirstLoad = useRef(true);
@@ -186,6 +191,28 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
         }
     };
 
+    const handleSuggestResponse = async (tone: string) => {
+        setSuggestingResponse(true);
+        setShowAiMenu(false);
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/suggest-response`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tone })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNewMessage(data.data);
+            } else {
+                alert('Error IA: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error suggesting response:', error);
+        } finally {
+            setSuggestingResponse(false);
+        }
+    };
+
     const updateStatus = async (newStatus: string) => {
         try {
             const res = await fetch(`/api/clients/${params.clientId}`, {
@@ -300,13 +327,58 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                     <div ref={messagesEndRef} />
                 </div>
 
+                {/* AI Suggestion Buttons */}
+                <div className="px-4 py-2 bg-gray-50/80 dark:bg-slate-800/80 border-t border-gray-100 dark:border-slate-800/10 flex items-center justify-between">
+                    <div className="flex gap-2">
+                        {suggestingResponse ? (
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 animate-pulse flex items-center gap-2">
+                                <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                                IA PENSANDO RESPUESTA...
+                            </span>
+                        ) : (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowAiMenu(!showAiMenu)}
+                                    className="text-[10px] font-black text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm transition-all active:scale-95"
+                                >
+                                    ✨ SUGERIR RESPUESTA IA
+                                </button>
+
+                                {showAiMenu && (
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-100 dark:border-blue-900/20">
+                                            <p className="text-[10px] font-black text-blue-800 dark:text-blue-400 uppercase tracking-wider">¿En qué tono?</p>
+                                        </div>
+                                        <div className="p-1">
+                                            {[
+                                                { id: 'amable', label: '😊 Amable (Recomendado)', color: 'hover:bg-green-50 dark:hover:bg-green-900/20' },
+                                                { id: 'directo', label: '💼 Directo / Profesional', color: 'hover:bg-blue-50 dark:hover:bg-blue-900/20' },
+                                                { id: 'urgencia', label: '⏰ Urgencia (Cerca de vencer)', color: 'hover:bg-orange-50 dark:hover:bg-orange-900/20' },
+                                                { id: 'promocion', label: '🚀 Promoción / Persuasivo', color: 'hover:bg-purple-50 dark:hover:bg-purple-900/20' }
+                                            ].map(tone => (
+                                                <button
+                                                    key={tone.id}
+                                                    onClick={() => handleSuggestResponse(tone.id)}
+                                                    className={`w-full text-left px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 rounded-xl transition-colors ${tone.color}`}
+                                                >
+                                                    {tone.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {/* Input Area */}
                 <form onSubmit={handleSendMessage} className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-200 dark:border-slate-800 flex gap-2">
                     <input
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Escribe un mensaje..."
+                        placeholder="Escribe un mensaje o usa la IA para sugerir uno..."
                         className="flex-1 bg-white dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-gray-900 dark:text-white focus:border-blue-500 outline-none transition-all"
                     />
                     <button
