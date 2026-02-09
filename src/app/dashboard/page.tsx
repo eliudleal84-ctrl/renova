@@ -11,7 +11,7 @@ export default function DashboardPage() {
     const router = useRouter();
     const [configMissing, setConfigMissing] = useState(false);
     const [conversations, setConversations] = useState<any[]>([]);
-    const [reminders, setReminders] = useState<any[]>([]);
+    const [reminderData, setReminderData] = useState<{ expiringClients: any[], manualReminders: any[] }>({ expiringClients: [], manualReminders: [] });
     const [loadingConv, setLoadingConv] = useState(true);
     const [loadingReminders, setLoadingReminders] = useState(true);
 
@@ -62,7 +62,7 @@ export default function DashboardPage() {
             const response = await fetch('/api/dashboard/reminders');
             const data = await response.json();
             if (data.success) {
-                setReminders(data.data);
+                setReminderData(data.data);
             }
         } catch (error) {
             console.error('Error fetching reminders:', error);
@@ -212,8 +212,8 @@ export default function DashboardPage() {
                             <div className="space-y-4">
                                 {loadingReminders ? (
                                     <div className="text-center py-4 text-gray-400 text-sm">Cargando...</div>
-                                ) : reminders.length > 0 ? (
-                                    reminders.map((client) => {
+                                ) : reminderData.expiringClients?.length > 0 ? (
+                                    reminderData.expiringClients.map((client) => {
                                         const isOverdue = new Date(client.expirationDate) < new Date();
                                         return (
                                             <Link
@@ -241,6 +241,46 @@ export default function DashboardPage() {
                                 ) : (
                                     <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm border border-dashed border-gray-200">
                                         Aún no hay renovaciones programadas
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Tareas Pendientes Card */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <span>✅</span> Tareas Pendientes
+                            </h2>
+                            <div className="space-y-4">
+                                {loadingReminders ? (
+                                    <div className="text-center py-4 text-gray-400 text-sm">Cargando...</div>
+                                ) : reminderData.manualReminders?.length > 0 ? (
+                                    reminderData.manualReminders.map((rem) => (
+                                        <Link
+                                            key={rem._id}
+                                            href={`/dashboard/client/${rem.clientId?._id || ''}`}
+                                            className="block p-4 rounded-xl border border-gray-100 bg-white hover:border-blue-200 transition-all hover:shadow-md"
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 text-red-600' :
+                                                        rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
+                                                            'bg-blue-100 text-blue-600'
+                                                    }`}>
+                                                    {rem.type}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-bold">
+                                                    {new Date(rem.dueDate).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <h4 className="text-sm font-bold text-gray-900 mb-1">{rem.description}</h4>
+                                            <p className="text-[10px] text-gray-400 font-medium italic">
+                                                Cliente: {rem.clientId?.name || 'Desconocido'}
+                                            </p>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="p-4 rounded-xl bg-gray-50 text-center text-gray-400 text-sm border border-dashed border-gray-200">
+                                        No hay tareas manuales pendientes
                                     </div>
                                 )}
                             </div>

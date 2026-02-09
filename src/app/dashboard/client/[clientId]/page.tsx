@@ -12,9 +12,12 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const router = useRouter();
     const [client, setClient] = useState<any>(null);
     const [messages, setMessages] = useState<any[]>([]);
+    const [reminders, setReminders] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [showReminderModal, setShowReminderModal] = useState(false);
+    const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -37,15 +40,18 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [clientRes, messagesRes] = await Promise.all([
+            const [clientRes, messagesRes, remindersRes] = await Promise.all([
                 fetch(`/api/clients/${params.clientId}`),
-                fetch(`/api/clients/${params.clientId}/messages`)
+                fetch(`/api/clients/${params.clientId}/messages`),
+                fetch(`/api/clients/${params.clientId}/reminders`)
             ]);
             const clientData = await clientRes.json();
             const messagesData = await messagesRes.json();
+            const remindersData = await remindersRes.json();
 
             if (clientData.success) setClient(clientData.data);
             if (messagesData.success) setMessages(messagesData.data);
+            if (remindersData.success) setReminders(remindersData.data);
         } catch (error) {
             console.error('Error fetching client data:', error);
         } finally {
@@ -60,6 +66,62 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             if (data.success) setMessages(data.data);
         } catch (error) {
             console.error('Error fetching messages:', error);
+        }
+    };
+
+    const fetchReminders = async () => {
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/reminders`);
+            const data = await res.json();
+            if (data.success) setReminders(data.data);
+        } catch (error) {
+            console.error('Error fetching reminders:', error);
+        }
+    };
+
+    const handleAddReminder = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/reminders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newReminder)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowReminderModal(false);
+                setNewReminder({ type: 'seguimiento', dueDate: '', description: '' });
+                fetchReminders();
+            }
+        } catch (error) {
+            console.error('Error adding reminder:', error);
+        }
+    };
+
+    const handleToggleReminder = async (reminderId: string, completed: boolean) => {
+        try {
+            const res = await fetch(`/api/reminders/${reminderId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed })
+            });
+            const data = await res.json();
+            if (data.success) fetchReminders();
+        } catch (error) {
+            console.error('Error toggling reminder:', error);
+        }
+    };
+
+    const handleDeleteReminder = async (reminderId: string) => {
+        if (!confirm('¿Eliminar este recordatorio?')) return;
+        try {
+            const res = await fetch(`/api/reminders/${reminderId}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) fetchReminders();
+        } catch (error) {
+            console.error('Error deleting reminder:', error);
         }
     };
 
@@ -160,8 +222,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                             className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${msg.direction === 'outgoing'
-                                    ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none border-l-4 border-green-500'
-                                    : 'bg-white text-gray-900 rounded-tl-none border-l-4 border-blue-500'
+                                ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none border-l-4 border-green-500'
+                                : 'bg-white text-gray-900 rounded-tl-none border-l-4 border-blue-500'
                                 }`}>
                                 <p className="text-sm font-medium leading-relaxed">{msg.body}</p>
                                 <p className="text-[10px] text-gray-500 mt-2 text-right font-bold">
@@ -234,6 +296,131 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                 </div>
             </div>
 
+            {/* Reminders Section */}
+            <div className="p-4 max-w-5xl w-full mx-auto mb-8">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em]">Recordatorios del Cliente</h3>
+                        <button
+                            onClick={() => setShowReminderModal(true)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                            + NUEVA TAREA
+                        </button>
+                    </div>
+
+                    <div className="space-y-3">
+                        {reminders.length > 0 ? (
+                            reminders.map((rem: any) => (
+                                <div
+                                    key={rem._id}
+                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${rem.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-blue-50 hover:border-blue-200'}`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={rem.completed}
+                                            onChange={(e) => handleToggleReminder(rem._id, e.target.checked)}
+                                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <div>
+                                            <p className={`text-sm font-bold ${rem.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                                                {rem.description}
+                                            </p>
+                                            <div className="flex gap-2 mt-1">
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 text-red-600' :
+                                                        rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
+                                                            'bg-blue-100 text-blue-600'
+                                                    }`}>
+                                                    {rem.type}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 font-bold">
+                                                    📅 {new Date(rem.dueDate).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeleteReminder(rem._id)}
+                                        className="text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <span className="text-xl">×</span>
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                                <p className="text-sm text-gray-400 font-medium italic">No hay tareas pendientes para este cliente.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Reminder Modal */}
+            {showReminderModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-xl font-black text-gray-900 mb-6">Nuevo Recordatorio</h2>
+                        <form onSubmit={handleAddReminder} className="space-y-6">
+                            <div>
+                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Tipo de Tarea</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['cobrar', 'seguimiento', 'renovar'].map((t) => (
+                                        <button
+                                            key={t}
+                                            type="button"
+                                            onClick={() => setNewReminder({ ...newReminder, type: t })}
+                                            className={`py-2 rounded-lg text-xs font-black uppercase border-2 transition-all ${newReminder.type === t
+                                                    ? 'border-blue-600 bg-blue-50 text-blue-600'
+                                                    : 'border-gray-100 text-gray-400 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Fecha Límite</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={newReminder.dueDate}
+                                    onChange={(e) => setNewReminder({ ...newReminder, dueDate: e.target.value })}
+                                    className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-gray-900 font-bold focus:border-blue-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-2">Descripción</label>
+                                <textarea
+                                    required
+                                    placeholder="Escribe qué necesitas hacer..."
+                                    value={newReminder.description}
+                                    onChange={(e) => setNewReminder({ ...newReminder, description: e.target.value })}
+                                    className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-gray-900 font-medium focus:border-blue-500 outline-none h-24 resize-none"
+                                />
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowReminderModal(false)}
+                                    className="flex-1 px-6 py-3 rounded-lg text-sm font-black text-gray-400 hover:bg-gray-50 transition-colors"
+                                >
+                                    CANCELAR
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg text-sm font-black hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                                >
+                                    GUARDAR
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
         .pattern {
           background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
@@ -243,3 +430,4 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
         </div>
     );
 }
+
