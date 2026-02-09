@@ -81,6 +81,7 @@ export async function POST(
         });
 
         if (!waResult.success) {
+            console.error('Error detallado de WhatsApp:', JSON.stringify(waResult.error, null, 2));
             return NextResponse.json({ success: false, error: 'Error al enviar por WhatsApp', details: waResult.error }, { status: 500 });
         }
 
