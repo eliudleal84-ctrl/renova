@@ -24,25 +24,29 @@ export default function DashboardPage() {
     const [newClient, setNewClient] = useState({ name: '', phoneNumber: '' });
     const [adding, setAdding] = useState(false);
 
-    // Sincronizar tema de forma robusta
+    // Consolidar lógica de modo oscuro
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            setDarkMode(true);
+        const isDark = savedTheme === 'dark';
+        setDarkMode(isDark);
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
         }
     }, []);
 
-    useEffect(() => {
-        if (darkMode) {
+    const toggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        if (newMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
         }
-    }, [darkMode]);
-
-    const toggleDarkMode = () => setDarkMode(!darkMode);
+    };
 
     useEffect(() => {
         if (status === 'authenticated') {

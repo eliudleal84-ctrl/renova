@@ -20,7 +20,10 @@ export async function GET(request: NextRequest) {
 
         await connectDB();
 
-        // Obtener todas las conversaciones del usuario, incluyendo los datos del cliente
+        // 1. Obtener todos los clientes del usuario
+        const allClients = await Client.find({ userId: session.user.id }).lean();
+
+        // 2. Obtener todas las conversaciones
         const conversations = await Conversation.find({ userId: session.user.id })
             .populate({
                 path: 'clientId',
@@ -29,9 +32,33 @@ export async function GET(request: NextRequest) {
             .sort({ lastMessageAt: -1 })
             .lean();
 
+        // 3. Crear una lista unificada
+        // Primero las conversaciones existentes
+        const unifiedList: any[] = [...conversations];
+
+        // Añadir clientes que NO tienen una conversación aún
+        const conversationClientIds = conversations.map(c => c.clientId?._id?.toString());
+
+        allClients.forEach(client => {
+            if (!conversationClientIds.includes(client._id.toString())) {
+                unifiedList.push({
+                    _id: `temp-${client._id}`,
+                    clientId: client,
+                    userId: session.user.id,
+                    phoneNumber: client.phoneNumber,
+                    lastMessageAt: client.createdAt,
+                    unreadCount: 0,
+                    isPlaceholder: true
+                });
+            }
+        });
+
+        // Re-ordenar por fecha (conversaciones reales primero por lastMessageAt, luego clientes nuevos por createdAt)
+        unifiedList.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+
         return NextResponse.json<ApiResponse>({
             success: true,
-            data: conversations,
+            data: unifiedList,
         });
     } catch (error: any) {
         console.error('Error obteniendo conversaciones:', error);

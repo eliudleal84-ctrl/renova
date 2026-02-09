@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Conversation from '@/models/Conversation';
+import Client from '@/models/Client';
 import Message from '@/models/Message';
 import User from '@/models/User';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
@@ -59,16 +60,28 @@ export async function POST(
         }
 
         // 2. Obtener la conversación y el número del cliente
-        const conversation = await Conversation.findOne({
+        let conversation = await Conversation.findOne({
             clientId: clientId,
             userId: session.user.id
         });
 
-        if (!conversation) return NextResponse.json({ success: false, error: 'Conversación no encontrada' }, { status: 404 });
+        const client = await Client.findById(clientId);
+        if (!client) return NextResponse.json({ success: false, error: 'Cliente no encontrado' }, { status: 404 });
+
+        if (!conversation) {
+            // Crear conversación si no existe (para clientes agregados manualmente)
+            conversation = await Conversation.create({
+                userId: session.user.id,
+                clientId: client._id,
+                phoneNumber: client.phoneNumber,
+                lastMessageAt: new Date(),
+                unreadCount: 0
+            });
+        }
 
         // 3. Enviar vía WhatsApp Cloud API
         // Limpiar el número: quitar el '1' extra en números de México (521... -> 52...)
-        let cleanPhone = conversation.phoneNumber.replace(/\D/g, '');
+        let cleanPhone = client.phoneNumber.replace(/\D/g, '');
         if (cleanPhone.startsWith('521') && cleanPhone.length === 13) {
             cleanPhone = '52' + cleanPhone.substring(3);
         }

@@ -28,22 +28,26 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            setDarkMode(true);
+        const isDark = savedTheme === 'dark';
+        setDarkMode(isDark);
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
         }
     }, []);
 
-    useEffect(() => {
-        if (darkMode) {
+    const toggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        if (newMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
         }
-    }, [darkMode]);
-
-    const toggleDarkMode = () => setDarkMode(!darkMode);
+    };
 
     const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
         if (chatContainerRef.current) {
