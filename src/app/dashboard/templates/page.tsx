@@ -190,16 +190,27 @@ export default function TemplatesPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Idioma</label>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Idioma (Código Meta)</label>
                                     <select
                                         value={newTemplate.language}
                                         onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
-                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
+                                        className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none mb-2"
                                     >
                                         <option value="es">Español (es)</option>
+                                        <option value="es_MX">Español México (es_MX)</option>
                                         <option value="en">English (en)</option>
+                                        <option value="en_US">English US (en_US)</option>
                                         <option value="pt_BR">Portugués (pt_BR)</option>
+                                        <option value="other">Otro (Escribir abajo)</option>
                                     </select>
+                                    {newTemplate.language === 'other' || !['es', 'es_MX', 'en', 'en_US', 'pt_BR'].includes(newTemplate.language) ? (
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: es_ES, fr_FR..."
+                                            onChange={(e) => setNewTemplate({ ...newTemplate, language: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none"
+                                        />
+                                    ) : null}
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 mb-1 uppercase tracking-widest">Categoría</label>
