@@ -30,24 +30,20 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             setDarkMode(true);
-            document.documentElement.classList.add('dark');
-        } else {
-            setDarkMode(false);
-            document.documentElement.classList.remove('dark');
         }
     }, []);
 
-    const toggleDarkMode = () => {
-        const newMode = !darkMode;
-        setDarkMode(newMode);
-        if (newMode) {
+    useEffect(() => {
+        if (darkMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
         }
-    };
+    }, [darkMode]);
+
+    const toggleDarkMode = () => setDarkMode(!darkMode);
 
     const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
         if (chatContainerRef.current) {

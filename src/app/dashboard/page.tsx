@@ -17,28 +17,32 @@ export default function DashboardPage() {
     const [loadingReminders, setLoadingReminders] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
 
+    // Novedades: Búsqueda y Filtros
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('Todos');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [newClient, setNewClient] = useState({ name: '', phoneNumber: '' });
+    const [adding, setAdding] = useState(false);
+
+    // Sincronizar tema de forma robusta
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             setDarkMode(true);
-            document.documentElement.classList.add('dark');
-        } else {
-            setDarkMode(false);
-            document.documentElement.classList.remove('dark');
         }
     }, []);
 
-    const toggleDarkMode = () => {
-        const newMode = !darkMode;
-        setDarkMode(newMode);
-        if (newMode) {
+    useEffect(() => {
+        if (darkMode) {
             document.documentElement.classList.add('dark');
             localStorage.setItem('theme', 'dark');
         } else {
             document.documentElement.classList.remove('dark');
             localStorage.setItem('theme', 'light');
         }
-    };
+    }, [darkMode]);
+
+    const toggleDarkMode = () => setDarkMode(!darkMode);
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -54,6 +58,30 @@ export default function DashboardPage() {
             return () => clearInterval(interval);
         }
     }, [status]);
+
+    const handleAddClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAdding(true);
+        try {
+            const res = await fetch('/api/clients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newClient)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowAddModal(false);
+                setNewClient({ name: '', phoneNumber: '' });
+                fetchConversations();
+            } else {
+                alert(data.error || 'Error al agregar cliente');
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAdding(false);
+        }
+    };
 
     const checkConfig = async () => {
         try {
@@ -96,6 +124,17 @@ export default function DashboardPage() {
         }
     };
 
+    // Filtrado de conversaciones en tiempo real
+    const filteredConversations = conversations.filter(conv => {
+        const matchesSearch =
+            (conv.clientId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            conv.phoneNumber.includes(searchTerm);
+
+        const matchesStatus = filterStatus === 'Todos' || conv.clientId?.status === filterStatus;
+
+        return matchesSearch && matchesStatus;
+    });
+
     if (status === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
@@ -111,14 +150,23 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 font-sans transition-colors duration-300">
-            <header className="bg-white dark:bg-slate-900 shadow-sm border-b border-gray-200 dark:border-slate-800 sticky top-0 z-10 transition-colors">
+            <header className="bg-white dark:bg-slate-900 shadow-sm border-b border-gray-200 dark:border-slate-800 sticky top-0 z-20 transition-colors">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold">R</span>
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-bold">R</span>
+                            </div>
+                            <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">RENOVA</h1>
                         </div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">RENOVA</h1>
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="hidden md:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95"
+                        >
+                            <span>+</span> NUEVO CLIENTE
+                        </button>
                     </div>
+
                     <div className="flex items-center gap-6">
                         <button
                             onClick={toggleDarkMode}
@@ -169,10 +217,41 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Columna Principal: Conversaciones */}
-                    <div className="lg:col-span-2 space-y-8">
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Buscador y Filtros */}
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar cliente por nombre o teléfono..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none dark:text-white"
+                                />
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 text-xl">🔍</span>
+                            </div>
+
+                            <div className="flex overflow-x-auto pb-2 gap-2 custom-scrollbar">
+                                {['Todos', 'Nuevo', 'Interesado', 'Pagado', 'Renovación', 'Cancelado'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status)}
+                                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filterStatus === status
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors">
                             <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
-                                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Conversaciones Recientes</h2>
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                                    {filterStatus !== 'Todos' ? `Clientes: ${filterStatus}` : 'Conversaciones Recientes'}
+                                </h2>
                                 <button
                                     onClick={() => fetchConversations(true)}
                                     className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
@@ -184,8 +263,8 @@ export default function DashboardPage() {
                             <div className="divide-y divide-gray-100 dark:divide-slate-800">
                                 {loadingConv ? (
                                     <div className="p-12 text-center text-gray-400 dark:text-gray-500">Cargando conversaciones...</div>
-                                ) : conversations.length > 0 ? (
-                                    conversations.map((conv) => (
+                                ) : filteredConversations.length > 0 ? (
+                                    filteredConversations.map((conv) => (
                                         <Link
                                             key={conv._id.toString()}
                                             href={`/dashboard/client/${conv.clientId?._id?.toString() || ''}`}
@@ -227,8 +306,12 @@ export default function DashboardPage() {
                                         <div className="w-20 h-20 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <span className="text-4xl text-gray-300">💬</span>
                                         </div>
-                                        <h3 className="text-gray-900 dark:text-white font-semibold mb-1">No hay conversaciones aún</h3>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">Las conversaciones aparecerán aquí una vez que conectes WhatsApp y recibas tu primer mensaje.</p>
+                                        <h3 className="text-gray-900 dark:text-white font-semibold mb-1">
+                                            {searchTerm ? 'No se encontraron resultados' : 'No hay conversaciones aún'}
+                                        </h3>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">
+                                            {searchTerm ? 'Prueba con otro término de búsqueda.' : 'Las conversaciones aparecerán aquí una vez que recibas un mensaje o registres un cliente.'}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -340,6 +423,57 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </main>
+
+            {/* Modal: Nuevo Cliente */}
+            {showAddModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-8 border border-gray-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Nuevo Cliente Manual</h2>
+                        <form onSubmit={handleAddClient} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 tracking-wider uppercase">Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ej: Juan Pérez"
+                                    value={newClient.name}
+                                    onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 tracking-wider uppercase">Número de WhatsApp</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ej: 521..."
+                                    value={newClient.phoneNumber}
+                                    onChange={(e) => setNewClient({ ...newClient, phoneNumber: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-slate-800 border-2 border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:border-blue-500 outline-none transition-all"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1 italic">Ingresa el número con código de país, sin espacios ni símbolos.</p>
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddModal(false)}
+                                    className="flex-1 px-6 py-3 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    CANCELAR
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={adding}
+                                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 dark:shadow-none transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    {adding ? 'GUARDANDO...' : 'GUARDAR'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
