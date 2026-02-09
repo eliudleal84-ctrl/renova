@@ -8,32 +8,51 @@ import Conversation from '@/models/Conversation';
 import { ApiResponse } from '@/types';
 
 export async function GET(request: NextRequest) {
+    let step = 'inicio';
     try {
+        step = 'obteniendo sesión';
         const session = await getServerSession(authOptions);
 
         if (!session || !session.user) {
             return NextResponse.json<ApiResponse>(
-                { success: false, error: 'No autorizado' },
+                { success: false, error: 'No autorizado - No hay sesión' },
                 { status: 401 }
             );
         }
 
+        if (!session.user.id) {
+            return NextResponse.json<ApiResponse>(
+                { success: false, error: 'ID de usuario no encontrado en la sesión' },
+                { status: 400 }
+            );
+        }
+
+        step = 'conectando a db';
         await connectDB();
 
         // Obtener todas las conversaciones del usuario, incluyendo los datos del cliente
-        // Las ordenamos por la última interacción (más reciente primero)
-        const conversations = await Conversation.find({ userId: session.user.id })
-            .populate('clientId')
-            .sort({ lastMessageAt: -1 });
+        // Aseguramos que el modelo Client esté registrado usándolo explícitamente en el populate
+        step = 'buscando conversaciones';
+        const query = { userId: session.user.id };
+
+        const conversations = await Conversation.find(query)
+            /* .populate({
+                path: 'clientId',
+                model: Client
+            }) */
+            .sort({ lastMessageAt: -1 })
+            .lean();
+
+        step = 'finalizando';
 
         return NextResponse.json<ApiResponse>({
             success: true,
             data: conversations,
         });
-    } catch (error) {
-        console.error('Error obteniendo conversaciones:', error);
+    } catch (error: any) {
+        console.error(`Error en ${step}:`, error);
         return NextResponse.json<ApiResponse>(
-            { success: false, error: 'Error del servidor' },
+            { success: false, error: `Error del servidor en ${step}: ` + (error.message || 'Error desconocido') },
             { status: 500 }
         );
     }
