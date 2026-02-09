@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import Conversation from '@/models/Conversation';
 import Client from '@/models/Client';
+import Message from '@/models/Message';
+import Conversation from '@/models/Conversation';
 import { ApiResponse } from '@/types';
 
 export async function GET(request: NextRequest) {
