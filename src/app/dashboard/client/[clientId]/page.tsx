@@ -23,12 +23,17 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
     const [darkMode, setDarkMode] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
+    const isFirstLoad = useRef(true);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             setDarkMode(true);
             document.documentElement.classList.add('dark');
+        } else {
+            setDarkMode(false);
+            document.documentElement.classList.remove('dark');
         }
     }, []);
 
@@ -44,8 +49,13 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
         }
     };
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTo({
+                top: chatContainerRef.current.scrollHeight,
+                behavior
+            });
+        }
     };
 
     useEffect(() => {
@@ -58,7 +68,14 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     }, [status, params.clientId]);
 
     useEffect(() => {
-        scrollToBottom();
+        if (messages.length > 0) {
+            if (isFirstLoad.current) {
+                scrollToBottom('auto');
+                isFirstLoad.current = false;
+            } else {
+                scrollToBottom('smooth');
+            }
+        }
     }, [messages]);
 
     const fetchData = async () => {
@@ -262,8 +279,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             </header>
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-hidden flex flex-col max-w-5xl w-full mx-auto bg-white dark:bg-slate-900 shadow-lg my-4 rounded-xl border border-gray-200 dark:border-slate-800 transition-colors">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            <div className="h-[500px] flex flex-col max-w-5xl w-full mx-auto bg-white dark:bg-slate-900 shadow-lg my-4 rounded-xl border border-gray-200 dark:border-slate-800 transition-colors">
+                <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                     {messages.map((msg: IMessage) => (
                         <div
                             key={msg._id.toString()}

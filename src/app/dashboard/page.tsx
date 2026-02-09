@@ -22,6 +22,9 @@ export default function DashboardPage() {
         if (savedTheme === 'dark') {
             setDarkMode(true);
             document.documentElement.classList.add('dark');
+        } else {
+            setDarkMode(false);
+            document.documentElement.classList.remove('dark');
         }
     }, []);
 
