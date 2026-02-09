@@ -16,6 +16,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [summarizing, setSummarizing] = useState(false);
+    const [aiSummary, setAiSummary] = useState('');
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [newReminder, setNewReminder] = useState({ type: 'seguimiento', dueDate: '', description: '' });
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -122,6 +124,26 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
             if (data.success) fetchReminders();
         } catch (error) {
             console.error('Error deleting reminder:', error);
+        }
+    };
+
+    const handleGenerateSummary = async () => {
+        setSummarizing(true);
+        setAiSummary('');
+        try {
+            const res = await fetch(`/api/clients/${params.clientId}/ai-summary`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (data.success) {
+                setAiSummary(data.data.summary);
+            } else {
+                alert('Error IA: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error generating summary:', error);
+        } finally {
+            setSummarizing(false);
         }
     };
 
@@ -256,8 +278,36 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                 </div>
             </div>
 
-            {/* Footer Info Area */}
-            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* IA & Footer Grid */}
+            <div className="p-4 max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                {/* IA Summary Card */}
+                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 rounded-xl border border-indigo-400 shadow-lg text-white">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-100">Resumen Mágico IA</h3>
+                        <button
+                            onClick={handleGenerateSummary}
+                            disabled={summarizing}
+                            className="bg-white text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase hover:bg-indigo-50 transition-all disabled:opacity-50"
+                        >
+                            {summarizing ? 'PENSANDO...' : '✨ GENERAR'}
+                        </button>
+                    </div>
+                    {aiSummary ? (
+                        <div className="text-xs leading-relaxed space-y-2 overflow-y-auto max-h-40 pr-2 custom-scrollbar">
+                            <div className="prose prose-invert prose-xs">
+                                {aiSummary.split('\n').map((line, i) => (
+                                    <p key={i} className="mb-1">{line}</p>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-40 flex flex-col items-center justify-center text-center opacity-60">
+                            <span className="text-3xl mb-2">🤖</span>
+                            <p className="text-[10px] font-bold">Haz clic en Generar para que la IA analice el chat.</p>
+                        </div>
+                    )}
+                </div>
+
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
                     <h3 className="text-xs font-black text-blue-800 uppercase tracking-[0.2em] mb-4">Notas del Cliente</h3>
                     <textarea
@@ -290,7 +340,7 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                             </div>
                         </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-4 font-medium italic italic">
+                    <p className="text-[10px] text-gray-400 mt-4 font-medium italic">
                         Última interacción registrada: {new Date(client.lastInteraction).toLocaleString()}
                     </p>
                 </div>
@@ -329,8 +379,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                             </p>
                                             <div className="flex gap-2 mt-1">
                                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${rem.type === 'cobrar' ? 'bg-red-100 text-red-600' :
-                                                        rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
-                                                            'bg-blue-100 text-blue-600'
+                                                    rem.type === 'renovar' ? 'bg-orange-100 text-orange-600' :
+                                                        'bg-blue-100 text-blue-600'
                                                     }`}>
                                                     {rem.type}
                                                 </span>
@@ -372,8 +422,8 @@ export default function ClientDetailPage({ params: paramsPromise }: { params: Pr
                                             type="button"
                                             onClick={() => setNewReminder({ ...newReminder, type: t })}
                                             className={`py-2 rounded-lg text-xs font-black uppercase border-2 transition-all ${newReminder.type === t
-                                                    ? 'border-blue-600 bg-blue-50 text-blue-600'
-                                                    : 'border-gray-100 text-gray-400 hover:bg-gray-50'
+                                                ? 'border-blue-600 bg-blue-50 text-blue-600'
+                                                : 'border-gray-100 text-gray-400 hover:bg-gray-50'
                                                 }`}
                                         >
                                             {t}
