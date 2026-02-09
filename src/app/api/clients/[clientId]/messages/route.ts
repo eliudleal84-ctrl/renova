@@ -11,15 +11,16 @@ import { ApiResponse } from '@/types';
 // GET: Obtener mensajes de una conversación basada en el clientId
 export async function GET(
     request: NextRequest,
-    { params }: { params: { clientId: string } }
+    { params }: { params: Promise<{ clientId: string }> }
 ) {
     try {
+        const { clientId } = await params;
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
         await connectDB();
         const conversation = await Conversation.findOne({
-            clientId: params.clientId,
+            clientId: clientId,
             userId: session.user.id
         });
 
@@ -39,9 +40,10 @@ export async function GET(
 // POST: Enviar un mensaje de respuesta
 export async function POST(
     request: NextRequest,
-    { params }: { params: { clientId: string } }
+    { params }: { params: Promise<{ clientId: string }> }
 ) {
     try {
+        const { clientId } = await params;
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
@@ -58,7 +60,7 @@ export async function POST(
 
         // 2. Obtener la conversación y el número del cliente
         const conversation = await Conversation.findOne({
-            clientId: params.clientId,
+            clientId: clientId,
             userId: session.user.id
         });
 

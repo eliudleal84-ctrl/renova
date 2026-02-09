@@ -4,7 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-export default function ClientDetailPage({ params }: { params: { clientId: string } }) {
+import { use } from 'react';
+
+export default function ClientDetailPage({ params: paramsPromise }: { params: Promise<{ clientId: string }> }) {
+    const params = use(paramsPromise);
     const { data: session, status } = useSession();
     const router = useRouter();
     const [client, setClient] = useState<any>(null);
@@ -20,7 +23,7 @@ export default function ClientDetailPage({ params }: { params: { clientId: strin
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/login');
-        if (status === 'authenticated') {
+        if (status === 'authenticated' && params.clientId) {
             fetchData();
             const interval = setInterval(fetchMessages, 5000); // Polling cada 5 seg para ver mensajes nuevos
             return () => clearInterval(interval);
@@ -154,8 +157,8 @@ export default function ClientDetailPage({ params }: { params: { clientId: strin
                             className={`flex ${msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div className={`max-w-[70%] p-3 rounded-lg shadow-sm relative ${msg.direction === 'outgoing'
-                                    ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
-                                    : 'bg-white text-gray-800 rounded-tl-none'
+                                ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
+                                : 'bg-white text-gray-800 rounded-tl-none'
                                 }`}>
                                 <p className="text-sm">{msg.body}</p>
                                 <p className="text-[10px] text-gray-400 mt-1 text-right">
